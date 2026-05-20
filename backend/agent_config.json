@@ -1,0 +1,39 @@
+{
+  "agent": {
+    "name": "SSH Troubleshooting AI Agent",
+    "version": "2.0.0",
+    "type": "enhanced",
+    "architecture": "openclaw-style"
+  },
+  "files": {
+    "system_prompt": "system_prompt.md",
+    "memory": "agent_memory.md",
+    "config": "agent_config.json"
+  },
+  "settings": {
+    "max_iterations": 20,
+    "temperature": 0.3,
+    "chunk_size": 10,
+    "timeout": 30
+  },
+  "capabilities": [
+    "SSH Connection Management",
+    "System Discovery",
+    "Service Status Checking",
+    "Resource Monitoring",
+    "Log Analysis",
+    "Network Diagnostics",
+    "Command Execution"
+  ],
+  "safety": {
+    "command_validation": true,
+    "blacklist_enabled": true,
+    "key_auth_preferred": true
+  },
+  "workflow": {
+    "discovery_first": true,
+    "auto_connect": true,
+    "auto_cleanup": true,
+    "specific_responses": true
+  }
+}

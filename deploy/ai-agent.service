@@ -1,0 +1,15 @@
+[Unit]
+Description=AI Agent SSH & Troubleshooting Backend
+After=network.target
+
+[Service]
+User=ai-agent
+Group=ai-agent
+WorkingDirectory=/opt/ai-agent/backend
+EnvironmentFile=/opt/ai-agent/backend/.env
+ExecStart=/opt/ai-agent/backend/venv/bin/python main.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

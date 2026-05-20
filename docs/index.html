@@ -1,0 +1,1349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AI Agent SSH &mdash; Documentation</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap');
+
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;font-family:'Inter',sans-serif;color:#e2e8f0;background:#030712}
+a{color:inherit;text-decoration:none}
+::selection{background:rgba(99,102,241,0.3);color:#fff}
+
+body{display:flex;height:100vh;overflow:hidden;background:radial-gradient(ellipse at top,#111827,transparent),radial-gradient(ellipse at bottom,#030712,transparent);background-color:#030712}
+.sidebar{width:260px;min-width:260px;background:rgba(17,24,39,0.6);border-right:1px solid rgba(255,255,255,0.05);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);display:flex;flex-direction:column;height:100vh;overflow:hidden;z-index:10}
+.main{flex:1;display:flex;flex-direction:column;height:100vh;overflow:hidden;min-width:0;position:relative}
+
+/* Ambient glow in background */
+.main::before{content:"";position:absolute;top:-20%;left:50%;transform:translateX(-50%);width:60vw;height:40vw;background:radial-gradient(circle,rgba(99,102,241,0.05) 0%,transparent 70%);border-radius:50%;z-index:-1;pointer-events:none}
+
+.sidebar-header{padding:24px 20px 16px;border-bottom:1px solid rgba(255,255,255,0.05);flex-shrink:0}
+.sidebar-header .logo{font-size:11px;font-weight:800;color:#818cf8;text-transform:uppercase;letter-spacing:0.15em;background:linear-gradient(to right,#818cf8,#c084fc);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.sidebar-header h1{font-size:16px;font-weight:700;color:#f8fafc;margin-top:6px;letter-spacing:-0.02em}
+.sidebar-header .ver{font-size:12px;color:#94a3b8;margin-top:4px;font-weight:500}
+.sidebar-nav{flex:1;overflow-y:auto;padding:12px 0 20px}
+.sidebar-nav ul{list-style:none}
+.sidebar-nav li{margin:2px 12px}
+.sec-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#64748b;padding:16px 12px 6px;cursor:default}
+.sidebar-nav a{display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:8px;font-size:13.5px;font-weight:500;color:#94a3b8;cursor:pointer;transition:all 0.2s ease;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border:1px solid transparent}
+.sidebar-nav a:hover{background:rgba(255,255,255,0.03);color:#f8fafc}
+.sidebar-nav a.active{background:rgba(99,102,241,0.1);color:#818cf8;border-color:rgba(99,102,241,0.2);box-shadow:inset 0 0 12px rgba(99,102,241,0.05)}
+
+.content-wrap{flex:1;overflow-y:auto;padding:48px 64px 64px;scroll-behavior:smooth}
+.content{max-width:900px;margin:0 auto}
+.page{display:none;animation:fadeIn 0.4s ease forwards;opacity:0;transform:translateY(10px)}.page.active{display:block}
+@keyframes fadeIn{to{opacity:1;transform:translateY(0)}}
+
+.page-title{font-size:40px;font-weight:800;color:#f8fafc;margin-bottom:12px;letter-spacing:-0.03em;line-height:1.1}
+.page-sub{font-size:18px;color:#94a3b8;margin-bottom:40px;line-height:1.6;font-weight:400}
+h2{font-size:24px;font-weight:700;color:#f8fafc;margin:48px 0 16px;padding-top:12px;letter-spacing:-0.02em}
+h2:first-of-type{margin-top:0}
+h3{font-size:18px;font-weight:600;color:#e2e8f0;margin:32px 0 12px}
+p{font-size:15.5px;line-height:1.8;color:#cbd5e1;margin-bottom:16px}
+ul,ol{padding-left:24px;margin-bottom:16px;color:#cbd5e1}
+li{font-size:15.5px;line-height:1.8;margin-bottom:6px}
+li::marker{color:#64748b}
+strong{font-weight:600;color:#f8fafc}
+hr{border:none;border-top:1px solid rgba(255,255,255,0.05);margin:40px 0}
+kbd{font-family:'Fira Code',monospace;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-bottom-width:2px;border-radius:6px;padding:3px 8px;font-size:12px;color:#e2e8f0;box-shadow:0 2px 0 rgba(0,0,0,0.2)}
+em{font-style:italic;color:#94a3b8}
+
+.screenshot{display:block;width:100%;border:1px solid rgba(255,255,255,0.1);border-radius:12px;box-shadow:0 20px 40px rgba(0,0,0,0.4);margin:32px 0 8px;transition:transform 0.3s ease,box-shadow 0.3s ease}
+.screenshot:hover{transform:translateY(-4px);box-shadow:0 30px 60px rgba(0,0,0,0.5),0 0 0 1px rgba(99,102,241,0.3)}
+.caption{font-size:13px;color:#64748b;margin-bottom:32px;text-align:center;font-weight:500}
+img{user-select:none;-webkit-user-drag:none;pointer-events:none}
+
+code{font-family:'Fira Code',Consolas,monospace;font-size:13.5px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.05);border-radius:6px;padding:2px 6px;color:#818cf8}
+pre{background:#0f172a;border:1px solid rgba(255,255,255,0.05);border-radius:12px;padding:20px 24px;overflow-x:auto;margin:16px 0 24px;line-height:1.7;box-shadow:inset 0 2px 4px rgba(0,0,0,0.2)}
+pre code{background:none;border:none;color:#e2e8f0;font-size:13.5px;padding:0}
+
+table{width:100%;border-collapse:separate;border-spacing:0;margin:24px 0 32px;font-size:14.5px;border:1px solid rgba(255,255,255,0.05);border-radius:12px;overflow:hidden}
+th{text-align:left;padding:14px 16px;background:rgba(255,255,255,0.02);border-bottom:1px solid rgba(255,255,255,0.05);color:#f8fafc;font-weight:600}
+td{padding:14px 16px;border-bottom:1px solid rgba(255,255,255,0.03);color:#cbd5e1;vertical-align:top}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:rgba(255,255,255,0.01)}
+
+.badge{display:inline-flex;align-items:center;padding:4px 10px;border-radius:999px;font-size:11.5px;font-weight:600;vertical-align:middle;text-transform:uppercase;letter-spacing:0.05em}
+.badge-green{background:rgba(34,197,94,0.1);color:#4ade80;border:1px solid rgba(34,197,94,0.2)}
+.badge-blue{background:rgba(59,130,246,0.1);color:#60a5fa;border:1px solid rgba(59,130,246,0.2)}
+.badge-orange{background:rgba(249,115,22,0.1);color:#fb923c;border:1px solid rgba(249,115,22,0.2)}
+.badge-red{background:rgba(239,68,68,0.1);color:#f87171;border:1px solid rgba(239,68,68,0.2)}
+.badge-purple{background:rgba(168,85,247,0.1);color:#c084fc;border:1px solid rgba(168,85,247,0.2)}
+.badge-gray{background:rgba(148,163,184,0.1);color:#94a3b8;border:1px solid rgba(148,163,184,0.2)}
+
+.callout{border-left:4px solid;padding:16px 20px;border-radius:0 12px 12px 0;margin:24px 0;font-size:15px;line-height:1.7;background:rgba(15,23,42,0.5);border:1px solid rgba(255,255,255,0.05);border-left-width:4px}
+.callout p,.callout li{margin:0;font-size:15px;color:#cbd5e1}
+.callout ul{margin:8px 0 0 0}
+.callout-info{border-left-color:#6366f1}
+.callout-warn{border-left-color:#f59e0b}
+.callout-tip{border-left-color:#22c55e}
+.callout-danger{border-left-color:#ef4444}
+.callout strong{font-weight:700;color:#f8fafc}
+
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin:24px 0}
+.grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin:24px 0}
+.card{background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.05);border-radius:16px;padding:24px;transition:all 0.3s ease;position:relative;overflow:hidden}
+.card::before{content:"";position:absolute;top:0;left:0;width:100%;height:100%;background:linear-gradient(135deg,rgba(255,255,255,0.05) 0%,transparent 100%);opacity:0;transition:opacity 0.3s ease}
+.card:hover{transform:translateY(-2px);border-color:rgba(99,102,241,0.3);box-shadow:0 12px 24px rgba(0,0,0,0.2),0 0 20px rgba(99,102,241,0.1)}
+.card:hover::before{opacity:1}
+.card-title{font-size:16px;font-weight:700;color:#f8fafc;margin-bottom:10px;display:flex;align-items:center;gap:10px}
+.card-desc{font-size:14.5px;color:#94a3b8;line-height:1.7}
+
+.step{display:flex;gap:20px;margin-bottom:32px;align-items:flex-start}
+.step-num{min-width:36px;height:36px;background:rgba(99,102,241,0.1);color:#818cf8;border:1px solid rgba(99,102,241,0.3);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;flex-shrink:0;box-shadow:0 0 16px rgba(99,102,241,0.2)}
+.step-title{font-size:18px;font-weight:600;color:#f8fafc;margin-bottom:8px;padding-top:4px}
+.step-desc{font-size:15px;color:#cbd5e1;line-height:1.8}
+
+.prov-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:20px 0 32px}
+.prov-item{border:1px solid rgba(255,255,255,0.05);background:rgba(255,255,255,0.02);border-radius:10px;padding:12px 16px;display:flex;align-items:center;gap:12px;font-size:14px;font-weight:600;color:#e2e8f0;transition:all 0.2s}
+.prov-item:hover{background:rgba(255,255,255,0.04);border-color:rgba(255,255,255,0.1)}
+.prov-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+
+/* Architecture visual */
+.arch-visual{margin:32px 0 40px;position:relative}
+.av-layer{border:1px solid rgba(255,255,255,0.05);background:rgba(15,23,42,0.6);backdrop-filter:blur(10px);border-radius:16px;padding:20px 24px;position:relative;transition:all 0.3s ease}
+.av-layer:hover{border-color:rgba(255,255,255,0.1);box-shadow:0 8px 32px rgba(0,0,0,0.3)}
+.av-frontend{border-left:4px solid #6366f1}
+.av-backend{border-left:4px solid #0ea5e9}
+.av-agent{border-left:4px solid #8b5cf6}
+.av-db{border-left:4px solid #22c55e}
+.av-hosts{border-left:4px solid #f59e0b}
+.av-title{font-size:16px;font-weight:700;color:#f8fafc;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between}
+.av-chips{display:flex;flex-wrap:wrap;gap:8px}
+.av-chips span{background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.05);border-radius:6px;padding:4px 10px;font-size:12px;color:#cbd5e1;font-weight:500}
+.av-routes{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.av-routes span{background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.05);border-radius:6px;padding:4px 10px;font-size:12px;color:#94a3b8;font-family:'Fira Code',monospace}
+.av-arrow{text-align:center;padding:12px 0;color:#64748b;font-size:14px;font-weight:600;letter-spacing:0.05em;display:flex;flex-direction:column;align-items:center;gap:4px}
+.av-arrow::after{content:"";width:2px;height:16px;background:linear-gradient(to bottom,transparent,rgba(255,255,255,0.1),transparent);display:block;margin-top:4px}
+.av-sub-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:16px}
+.av-sub{background:rgba(139,92,246,0.05);border-radius:10px;padding:12px;border:1px solid rgba(139,92,246,0.15);transition:all 0.2s}
+.av-sub:hover{background:rgba(139,92,246,0.1);border-color:rgba(139,92,246,0.3)}
+.av-sub-title{font-size:13px;font-weight:700;color:#e2e8f0;margin-bottom:4px}
+.av-sub-desc{font-size:12px;color:#94a3b8;line-height:1.5}
+
+/* Cron reference */
+.cron-ref{background:#0f172a;border:1px solid rgba(255,255,255,0.05);border-radius:12px;padding:20px 24px;margin:16px 0 24px;font-family:'Fira Code',monospace;font-size:13px;color:#cbd5e1;line-height:2;overflow-x:auto;white-space:pre}
+
+/* Nginx / systemd config blocks */
+.cfg-block{background:#0f172a;border:1px solid rgba(255,255,255,0.05);border-radius:12px;padding:20px 24px;overflow-x:auto;margin:16px 0 24px}
+.cfg-block code{background:none;border:none;color:#94a3b8;font-size:13px;padding:0;display:block;line-height:1.8;white-space:pre}
+
+/* TOC accordion */
+.toc-list{margin:24px 0 40px;display:flex;flex-direction:column;gap:12px}
+.toc-item{border:1px solid rgba(255,255,255,0.05);border-radius:12px;overflow:hidden;background:rgba(255,255,255,0.02);transition:all 0.3s ease}
+.toc-item:hover{border-color:rgba(255,255,255,0.1)}
+.toc-item>summary{display:flex;align-items:center;gap:16px;padding:16px 20px;cursor:pointer;list-style:none;user-select:none;transition:background 0.2s}
+.toc-item>summary::-webkit-details-marker,.toc-item>summary::marker{display:none}
+.toc-item[open]>summary{background:rgba(99,102,241,0.05);border-bottom:1px solid rgba(255,255,255,0.05)}
+.toc-item>summary:hover{background:rgba(255,255,255,0.04)}
+.toc-ico{font-size:20px;flex-shrink:0;line-height:1;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.2))}
+.toc-info{flex:1;min-width:0}
+.toc-name{font-size:16px;font-weight:600;color:#f8fafc;display:block;margin-bottom:2px}
+.toc-blurb{font-size:14px;color:#94a3b8;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.toc-chev{color:#64748b;font-size:12px;flex-shrink:0;transition:transform 0.3s ease;margin-left:8px}
+.toc-item[open] .toc-chev{transform:rotate(90deg);color:#818cf8}
+.toc-body{padding:20px 20px 24px 56px;background:rgba(0,0,0,0.2)}
+.toc-body p{font-size:15px;color:#cbd5e1;margin-bottom:16px;line-height:1.7}
+.toc-goto{display:inline-flex;align-items:center;gap:8px;padding:8px 20px;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;transition:all 0.2s;box-shadow:0 4px 12px rgba(99,102,241,0.3)}
+.toc-goto:hover{transform:translateY(-1px);box-shadow:0 6px 16px rgba(99,102,241,0.4);filter:brightness(1.1)}
+
+/* Hero Section specific to overview */
+.hero{text-align:center;padding:40px 0 60px;position:relative}
+.hero-badge{display:inline-block;padding:6px 16px;background:rgba(99,102,241,0.1);border:1px solid rgba(99,102,241,0.3);color:#818cf8;border-radius:999px;font-size:13px;font-weight:600;margin-bottom:24px;letter-spacing:0.05em;text-transform:uppercase}
+.hero h1{font-size:56px;font-weight:800;background:linear-gradient(135deg,#fff,#94a3b8);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:20px;letter-spacing:-0.04em}
+.hero p{font-size:20px;color:#94a3b8;max-width:600px;margin:0 auto;line-height:1.6}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar{width:8px;height:8px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.1);border-radius:4px}
+::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,0.2)}
+
+/* Fix nav active indicator */
+.sidebar-nav a.active::before{content:"";position:absolute;left:0;width:3px;height:24px;background:#818cf8;border-radius:0 4px 4px 0}
+.sidebar-nav li{position:relative}
+
+/* Page footer pagination */
+.page-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 48px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 24px; }
+.nav-btn { display: inline-flex; align-items: center; gap: 8px; padding: 10px 20px; border-radius: 8px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #f8fafc; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s ease; }
+.nav-btn:hover:not(:disabled) { background: rgba(255,255,255,0.1); border-color: rgba(99,102,241,0.4); box-shadow: 0 4px 12px rgba(99,102,241,0.15); }
+.nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+.page-indicator { font-size: 13px; color: #94a3b8; }
+.page-indicator b { color: #e2e8f0; }
+
+/* Sidebar footer */
+.sidebar-footer { padding: 20px; border-top: 1px solid rgba(255,255,255,0.05); font-size: 12.5px; color: #94a3b8; display: flex; flex-direction: column; gap: 14px; }
+.sidebar-footer a { color: #cbd5e1; transition: color 0.2s ease; display: inline-flex; align-items: center; gap: 8px; }
+.sidebar-footer a:hover { color: #818cf8; }
+.sf-links { display: flex; flex-direction: column; gap: 10px; }
+.sf-made { display: flex; align-items: center; gap: 6px; }
+
+</style>
+</head>
+<body>
+
+<aside class="sidebar">
+  <div class="sidebar-header">
+    <div class="logo">AI Agent</div>
+    <h1>Documentation</h1>
+    <div class="ver">SSH &amp; Troubleshooting &middot; v2.0</div>
+  </div>
+  <nav class="sidebar-nav">
+    <ul id="nav-list">
+      <li class="sec-label">Introduction</li>
+      <li><a href="#" data-page="0" class="active">&#127968; Overview</a></li>
+      <li class="sec-label">Installation</li>
+      <li><a href="#" data-page="1">&#9889; Quick Start</a></li>
+      <li><a href="#" data-page="2">&#128295; Development Setup</a></li>
+      <li><a href="#" data-page="3">&#128640; Production Deploy</a></li>
+      <li class="sec-label">Features</li>
+      <li><a href="#" data-page="4">&#128421; Interface</a></li>
+      <li><a href="#" data-page="5">&#128172; Chat &amp; AI Agent</a></li>
+      <li><a href="#" data-page="6">&#128273; SSH Manager</a></li>
+      <li><a href="#" data-page="7">&#129302; LLM Models</a></li>
+      <li><a href="#" data-page="8">&#9200; Cron Jobs</a></li>
+      <li class="sec-label">Operations</li>
+      <li><a href="#" data-page="9">&#128203; Logs &amp; Monitoring</a></li>
+      <li><a href="#" data-page="10">&#128190; Backup &amp; AI Safety</a></li>
+      <li><a href="#" data-page="11">&#128274; Settings &amp; Auth</a></li>
+    </ul>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="sf-made">Made with &#10084;&#65039; by <a href="https://paoloronco.it" target="_blank" rel="noopener" style="font-weight:600;color:#f8fafc;margin-left:2px">Paolo Ronco</a></div>
+    <div class="sf-links">
+      <a href="https://paoloronco.it" target="_blank" rel="noopener">&#127760; paoloronco.it</a>
+      <a href="https://github.com/paoloronco" target="_blank" rel="noopener">&#128025; GitHub</a>
+      <a href="https://www.linkedin.com/in/paolo-ronco-685a5722a/" target="_blank" rel="noopener">&#128101; LinkedIn</a>
+      <a href="https://github.com/paoloronco/infra-agent" target="_blank" rel="noopener" style="color:#fbbf24">&#11088; Star on GitHub</a>
+    </div>
+  </div>
+</aside>
+
+<div class="main">
+<div class="content-wrap" id="content-wrap">
+<div class="content">
+
+
+<!-- PAGE 0 — OVERVIEW -->
+<!-- PAGE 0 — OVERVIEW -->
+<div class="page active" id="page-0">
+  <div class="hero">
+    <div class="hero-badge">Open Source &middot; v2.0</div>
+    <h1>Infra Agent</h1>
+    <p>An AI agent for diagnosing and managing remote Linux hosts over SSH. Ask in plain English, and the agent connects to run diagnostics, read logs, and report back.</p>
+  </div>
+
+  <h2>How it works</h2>
+  <p><strong>Infra Agent</strong> is a self-hosted application that combines a LangGraph-powered ReAct agent with secure SSH execution. Instead of manually SSHing into machines, you describe what you need, and the agent takes care of the rest — choosing the right commands, interpreting the output, and even recovering from errors autonomously.</p>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title"><span style="font-size:20px">&#128273;</span> Secure SSH Execution</div>
+      <div class="card-desc">SSH keys are strictly managed locally. The agent only connects to hosts you explicitly register, and every shell command is logged to the database.</div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span style="font-size:20px">&#9989;</span> Explicit Approvals</div>
+      <div class="card-desc">Read-only actions flow instantly. High-risk actions (such as restarting services or deleting files) are suspended and require explicit approval in the chat before execution.</div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span style="font-size:20px">&#129302;</span> ReAct Agent Loop</div>
+      <div class="card-desc">If a command fails or a file is missing, the agent autonomously reasons about the failure and retries alternative approaches up to 3 times.</div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span style="font-size:20px">&#128640;</span> Self-Hosted &amp; Ready</div>
+      <div class="card-desc">Install in minutes using a single bash script. Includes JWT authentication, multi-user support, and structured logs right out of the box.</div>
+    </div>
+  </div>
+
+  <hr>
+
+  <h2>Documentation Index</h2>
+  <p>Expand any section below for a summary and a direct link.</p>
+  <div class="toc-list">
+
+    <details class="toc-item">
+      <summary><span class="toc-ico">&#9889;</span><span class="toc-info"><span class="toc-name">Installation &amp; Deployment</span><span class="toc-blurb">One-command install script or local setup</span></span><span class="toc-chev">&#9654;</span></summary>
+      <div class="toc-body">
+        <p>A single <code>curl -fsSL https://raw.githubusercontent.com/paoloronco/infra-agent/master/install.sh | sudo bash</code> command installs all dependencies, configures systemd, and sets up an Nginx reverse proxy for production. You can also run it locally for development.</p>
+        <button class="toc-goto" onclick="go(1)">Quick Start</button>
+        <button class="toc-goto" onclick="go(3)" style="margin-left: 8px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);">Production Deploy</button>
+      </div>
+    </details>
+
+    <details class="toc-item">
+      <summary><span class="toc-ico">&#128172;</span><span class="toc-info"><span class="toc-name">Chat &amp; AI Agent</span><span class="toc-blurb">Agent loop, tools, and approval flow</span></span><span class="toc-chev">&#9654;</span></summary>
+      <div class="toc-body">
+        <p>Learn how the agent reasons, acts, and observes. See the 8 available SSH tools, how to write effective prompts, and how the approval flow handles risky commands.</p>
+        <button class="toc-goto" onclick="go(5)">Explore Agent Capabilities &#8594;</button>
+      </div>
+    </details>
+
+    <details class="toc-item">
+      <summary><span class="toc-ico">&#128273;</span><span class="toc-info"><span class="toc-name">SSH Manager</span><span class="toc-blurb">Register hosts and manage keys</span></span><span class="toc-chev">&#9654;</span></summary>
+      <div class="toc-body">
+        <p>Use the automated setup wizard to deploy a restricted service user to your remote machines, or bring your own keys. Organize your hosts and test connections.</p>
+        <button class="toc-goto" onclick="go(6)">Manage Hosts &#8594;</button>
+      </div>
+    </details>
+
+    <details class="toc-item">
+      <summary><span class="toc-ico">&#128203;</span><span class="toc-info"><span class="toc-name">Observability &amp; Models</span><span class="toc-blurb">Logs, models, and scheduled tasks</span></span><span class="toc-chev">&#9654;</span></summary>
+      <div class="toc-body">
+        <p>Configure any of the 13+ supported LLM providers. Review the execution logs, or set up cron jobs to run automated AI diagnostics on a schedule.</p>
+        <button class="toc-goto" onclick="go(7)">LLM Providers</button>
+        <button class="toc-goto" onclick="go(9)" style="margin-left: 8px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);">Logs &amp; Monitoring</button>
+      </div>
+    </details>
+  </div>
+
+  <h2>System Architecture</h2>
+  <div class="arch-visual">
+    <div class="av-layer av-frontend">
+      <div class="av-title">Presentation Tier <span class="badge badge-purple">React SPA</span></div>
+      <div class="av-chips"><span>React 18</span><span>Vite 8</span><span>Tailwind CSS</span><span>Server-Sent Events (SSE)</span></div>
+    </div>
+    <div class="av-arrow">&#8597;&nbsp; HTTP / REST &nbsp;+&nbsp; SSE Streaming</div>
+    <div class="av-layer av-backend">
+      <div class="av-title">Backend API <span class="badge badge-blue">FastAPI</span></div>
+      <div class="av-chips"><span>Python 3.12</span><span>JWT Auth</span><span>Rate Limiting</span></div>
+      <div class="av-routes"><span>/api/chat</span><span>/api/auth</span><span>/api/models</span><span>/api/ssh</span><span>/api/logs</span><span>/api/backup</span></div>
+    </div>
+    <div class="av-arrow">&#8597;</div>
+    <div class="av-layer av-agent">
+      <div class="av-title">Agent Core <span class="badge badge-green">LangGraph ReAct</span></div>
+      <div class="av-sub-grid">
+        <div class="av-sub"><div class="av-sub-title">Multi-Provider LLM</div><div class="av-sub-desc">Support for OpenAI, Anthropic, Gemini, Groq, Ollama</div></div>
+        <div class="av-sub"><div class="av-sub-title">Guardrails</div><div class="av-sub-desc">Input validation, loop detection, risk classification</div></div>
+        <div class="av-sub"><div class="av-sub-title">Paramiko SSH</div><div class="av-sub-desc">Connection pooling, 5-min TTL, key management</div></div>
+        <div class="av-sub"><div class="av-sub-title">Memory Store</div><div class="av-sub-desc">Short-term context window + long-term DB state</div></div>
+      </div>
+    </div>
+    <div class="av-arrow">&#8597;</div>
+    <div class="grid-2" style="margin: 0;">
+      <div class="av-layer av-db" style="margin-top: 0;">
+        <div class="av-title">Database</div>
+        <div class="av-chips"><span>PostgreSQL / SQLite</span><span>SQLAlchemy</span><span>Alembic</span></div>
+      </div>
+      <div class="av-layer av-hosts" style="margin-top: 0;">
+        <div class="av-title">Target Hosts</div>
+        <div class="av-chips"><span>Ubuntu</span><span>Debian</span><span>RHEL</span><span>macOS</span></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+
+<!-- PAGE 1 — QUICK START -->
+<div class="page" id="page-1">
+  <h1 class="page-title">Quick Start</h1>
+  <p class="page-sub">One command to install everything on a Linux server and get a fully running instance.</p>
+
+  <h2>One-line installer</h2>
+  <p>A single command sets up the entire stack — no manual steps required:</p>
+  <pre><code>curl -fsSL https://raw.githubusercontent.com/paoloronco/infra-agent/master/install.sh | sudo bash</code></pre>
+
+  <p>Alternatively, clone the repository and run the installer locally:</p>
+  <pre><code>git clone https://github.com/paoloronco/infra-agent.git
+cd infra-agent
+sudo bash install.sh</code></pre>
+
+  <div class="callout callout-info">
+    <strong>Requires Debian or Ubuntu.</strong> The script uses <code>apt-get</code> and <code>systemd</code>. Run it as root or with <code>sudo</code> on the target server.
+  </div>
+
+  <h2>What the installer does — automatically</h2>
+  <div class="grid-2">
+    <div class="card"><div class="card-title">&#128230; System dependencies</div><div class="card-desc">Installs <code>git</code>, Python tooling, <code>nginx</code>, and a Vite-compatible Node.js 22 runtime.</div></div>
+    <div class="card"><div class="card-title">&#128100; Dedicated system user</div><div class="card-desc">Creates an <code>ai-agent</code> system user. The app runs under this user, never as root.</div></div>
+    <div class="card"><div class="card-title">&#128013; Python backend</div><div class="card-desc">Creates a virtual environment at <code>/opt/ai-agent/backend/venv</code> and installs all pinned Python dependencies.</div></div>
+    <div class="card"><div class="card-title">&#128736; Frontend build</div><div class="card-desc">Runs <code>npm install</code> and <code>npm run build</code> to compile the React app to optimised static files.</div></div>
+    <div class="card"><div class="card-title">&#9881;&#65039; Runtime service</div><div class="card-desc">Uses systemd when available. In containers or WSL-like environments without systemd, starts the backend as a background process and writes logs to <code>/var/log/ai-agent/backend.log</code>.</div></div>
+    <div class="card"><div class="card-title">&#127760; Nginx reverse proxy</div><div class="card-desc">Configures Nginx to serve the frontend on port 80 and proxy <code>/api</code> to the backend with SSE support.</div></div>
+  </div>
+
+  <h2>Installation options</h2>
+  <p>The one-line installer uses defaults automatically. A local clone can be run interactively or with flags:</p>
+  <pre><code># One-line install with defaults
+curl -fsSL https://raw.githubusercontent.com/paoloronco/infra-agent/master/install.sh | sudo bash
+
+# Custom domain and port
+sudo bash install.sh --domain myserver.example.com --backend-port 8000
+
+# Skip Nginx (if you have your own reverse proxy)
+sudo bash install.sh --no-nginx --domain myserver.example.com</code></pre>
+  <table>
+    <tr><th>Flag</th><th>Default</th><th>Description</th></tr>
+    <tr><td><code>--yes</code></td><td>&mdash;</td><td>Skip all prompts, use defaults</td></tr>
+    <tr><td><code>--install-dir PATH</code></td><td><code>/opt/ai-agent</code></td><td>Where to install the application</td></tr>
+    <tr><td><code>--backend-port PORT</code></td><td><code>8000</code></td><td>Port the FastAPI backend listens on. If the default is busy, the one-line installer uses the next free port.</td></tr>
+    <tr><td><code>--domain NAME</code></td><td>auto-detected IP</td><td>Domain or IP for the Nginx server_name</td></tr>
+    <tr><td><code>--no-nginx</code></td><td>&mdash;</td><td>Skip Nginx installation and configuration</td></tr>
+  </table>
+
+  <h2>After installation — first setup</h2>
+
+  <div class="step">
+    <div class="step-num">1</div>
+    <div>
+      <div class="step-title">Get the initial admin password</div>
+      <div class="step-desc"><pre><code>sudo cat /opt/ai-agent/backend/data/bootstrap_admin_password.txt</code></pre>
+      This file is created on first run and contains the random password for the <code>admin</code> account. Delete or secure it after your first login.</div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-num">2</div>
+    <div>
+      <div class="step-title">Open the app</div>
+      <div class="step-desc">Navigate to <strong>http://your-server-ip</strong> (or your domain if configured). Log in as <code>admin</code> with the password from step 1.</div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-num">3</div>
+    <div>
+      <div class="step-title">Add an LLM provider</div>
+      <div class="step-desc">Go to <strong>Models</strong> &rarr; find a provider card &rarr; paste your API key &rarr; <strong>Save</strong> &rarr; <strong>Test</strong>. <a href="https://console.groq.com" style="color:#4f46e5">Groq</a> is free and takes 30 seconds to set up.</div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-num">4</div>
+    <div>
+      <div class="step-title">Register a target host</div>
+      <div class="step-desc">Go to <strong>SSH Manager</strong> &rarr; <strong>+ Add host</strong> &rarr; choose <em>AI Agent Setup</em> &rarr; run the generated script on the target as root &rarr; click <strong>Test</strong>.</div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-num">5</div>
+    <div>
+      <div class="step-title">Enable authentication</div>
+      <div class="step-desc">Go to <strong>Settings</strong> &rarr; toggle <strong>Authentication ON</strong>. Change the default admin password. Your instance is now secured.</div>
+    </div>
+  </div>
+
+  <h2>Useful post-install commands</h2>
+  <pre><code># Service management
+sudo systemctl status ai-agent        # check service health
+sudo systemctl restart ai-agent       # restart after config changes
+sudo journalctl -u ai-agent -f        # follow live logs
+
+# Maintenance
+sudo bash /opt/ai-agent/upgrade.sh    # pull latest code, rebuild, restart
+sudo bash /opt/ai-agent/uninstall.sh --yes
+sudo bash /opt/ai-agent/uninstall.sh --yes --purge-deps  # remove app-owned packages, keep system basics</code></pre>
+
+  <div class="callout callout-tip">
+    <strong>Upgrading</strong> is handled entirely by <code>upgrade.sh</code> — it pulls the latest code from git, backs up the SQLite database, upgrades Python deps, rebuilds the frontend, and restarts the service. Zero downtime in most cases.
+  </div>
+
+  <h2>Local / development install</h2>
+  <p>The one-line installer targets production Linux servers. If you want to run the app locally on your laptop with hot reload, see the <strong>Development Setup</strong> page instead.</p>
+</div>
+
+
+<!-- PAGE 2 — DEVELOPMENT SETUP -->
+<div class="page" id="page-2">
+  <h1 class="page-title">Development Setup</h1>
+  <p class="page-sub">Full from-source setup with hot reload for both backend and frontend.</p>
+
+  <h2>Repository structure</h2>
+  <pre><code>infra-agent/
+├── app/
+│   ├── backend/          FastAPI application
+│   │   ├── main.py       Entry point
+│   │   ├── config.py     Settings (loaded from .env)
+│   │   ├── agent_loader.py  LangGraph agent factory
+│   │   ├── routers/      API endpoint modules
+│   │   ├── prompts/      Layered system prompt (8 markdown files)
+│   │   ├── memory/       Session + long-term memory
+│   │   ├── tools/        Command validator, tool registry
+│   │   ├── observability/ Callbacks and tracing
+│   │   ├── agent/        Guardrails, checkpointing, state
+│   │   ├── alembic/      Database migrations
+│   │   ├── data/         Runtime data (DB, keys) — gitignored
+│   │   ├── .env.example  Config template
+│   │   └── requirements.txt
+│   └── frontend/         React + Vite application
+│       ├── src/
+│       │   ├── pages/    One component per route
+│       │   ├── components/
+│       │   ├── context/  AppContext (theme, global state)
+│       │   └── api.js    Axios + fetch wrappers
+│       └── package.json
+└── docs/                 This documentation site</code></pre>
+
+  <h2>Backend setup</h2>
+
+  <h3>1. Virtual environment</h3>
+  <pre><code>cd app/backend
+python -m venv venv
+source venv/bin/activate     # Linux/macOS
+# venv\Scripts\activate      # Windows PowerShell</code></pre>
+
+  <h3>2. Install dependencies</h3>
+  <p>All packages are version-pinned in <code>requirements.txt</code> to guarantee reproducibility:</p>
+  <pre><code>pip install -r requirements.txt</code></pre>
+  <p>If you add a new package during development, pin it immediately:</p>
+  <pre><code>pip install some-package==x.y.z
+pip freeze &gt; requirements.lock   # keep as lockfile reference</code></pre>
+
+  <h3>3. Environment configuration</h3>
+  <pre><code>cp .env.example .env
+# Edit .env — at minimum set one LLM API key</code></pre>
+  <p>The full reference for every variable is on the <strong>Production Deploy</strong> page. For local development, the only required setting is an API key for at least one LLM provider.</p>
+
+  <h3>4. Run with hot reload</h3>
+  <pre><code>uvicorn main:app --host 0.0.0.0 --port 8001 --reload</code></pre>
+  <p>The <code>--reload</code> flag watches for file changes and restarts automatically. The backend API is available at <strong>http://localhost:8001</strong>. FastAPI's interactive docs (Swagger UI) are at <strong>http://localhost:8001/api/swagger</strong>.</p>
+
+  <h2>Frontend setup</h2>
+
+  <h3>1. Install dependencies</h3>
+  <pre><code>cd app/frontend
+npm install</code></pre>
+
+  <h3>2. API proxy</h3>
+  <p>The Vite dev server needs to proxy <code>/api</code>, <code>/systems</code>, <code>/ssh-keys</code> and other backend paths. Check <code>vite.config.js</code> — if a proxy is not configured, the frontend will call the backend directly on port 8001 (make sure <code>CORS_ORIGINS</code> includes <code>http://localhost:5173</code>).</p>
+
+  <h3>3. Start the dev server</h3>
+  <pre><code>npm run dev</code></pre>
+  <p>The frontend is available at <strong>http://localhost:5173</strong> with full hot-module replacement (HMR).</p>
+
+  <h2>Database</h2>
+  <p>By default the app uses an <strong>SQLite</strong> file at <code>data/app.db</code>. This is ideal for development — no installation required, the file is created on first run.</p>
+
+  <h3>Running migrations manually</h3>
+  <pre><code>cd app/backend
+alembic upgrade head     # apply all pending migrations
+alembic history          # show migration history
+alembic current          # show current DB revision</code></pre>
+
+  <h3>Switching to PostgreSQL (optional in dev)</h3>
+  <pre><code># .env
+DATABASE_URL=postgresql+psycopg://devuser:devpass@localhost:5432/aiagent</code></pre>
+
+  <h2>Running tests</h2>
+  <pre><code>cd app/backend
+python -m pytest test_*.py -v</code></pre>
+
+  <div class="callout callout-info">
+    <strong>Dev tip:</strong> set <code>LOG_LEVEL=DEBUG</code> in <code>.env</code> to see all agent tool calls, SSH commands, and LLM invocations in the console. Very useful for understanding what the agent is doing.
+  </div>
+</div>
+
+
+<!-- PAGE 3 — PRODUCTION DEPLOY -->
+<div class="page" id="page-3">
+  <h1 class="page-title">Production Deployment</h1>
+  <p class="page-sub">Nginx reverse proxy, systemd service, PostgreSQL, and environment hardening.</p>
+
+  <h2>System requirements</h2>
+  <table>
+    <tr><th>Component</th><th>Minimum</th><th>Recommended</th></tr>
+    <tr><td>OS</td><td>Ubuntu 22.04 / Debian 12</td><td>Ubuntu 24.04 LTS</td></tr>
+    <tr><td>RAM</td><td>1 GB</td><td>2 GB+</td></tr>
+    <tr><td>CPU</td><td>1 vCPU</td><td>2 vCPU</td></tr>
+    <tr><td>Disk</td><td>5 GB</td><td>20 GB (logs, attachments)</td></tr>
+    <tr><td>Python</td><td>3.10</td><td>3.12</td></tr>
+    <tr><td>Node.js</td><td>20.19+</td><td>22.12+ / 22 LTS</td></tr>
+  </table>
+
+  <h2>PostgreSQL setup</h2>
+  <pre><code>sudo apt install postgresql postgresql-contrib
+sudo -u postgres psql -c "CREATE USER aiagent WITH PASSWORD 'strongpassword';"
+sudo -u postgres psql -c "CREATE DATABASE aiagentdb OWNER aiagent;"</code></pre>
+  <p>Then set in <code>.env</code>:</p>
+  <pre><code>DATABASE_URL=postgresql+psycopg://aiagent:strongpassword@localhost:5432/aiagentdb</code></pre>
+
+  <h2>Backend as a systemd service</h2>
+  <pre><code>sudo nano /etc/systemd/system/aiagent-backend.service</code></pre>
+  <div class="cfg-block"><code>[Unit]
+Description=AI Agent SSH Backend
+After=network.target postgresql.service
+
+[Service]
+Type=simple
+User=www-data
+WorkingDirectory=/opt/infra-agent/app/backend
+Environment=PATH=/opt/infra-agent/app/backend/venv/bin
+ExecStart=/opt/infra-agent/app/backend/venv/bin/uvicorn \
+          main:app --host 127.0.0.1 --port 8001 --workers 2
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target</code></div>
+  <pre><code>sudo systemctl daemon-reload
+sudo systemctl enable --now aiagent-backend
+sudo systemctl status aiagent-backend</code></pre>
+
+  <h2>Build the frontend</h2>
+  <pre><code>cd app/frontend
+npm install --production
+npm run build
+# Output is in app/frontend/dist/</code></pre>
+
+  <h2>Nginx configuration</h2>
+  <pre><code>sudo nano /etc/nginx/sites-available/aiagent</code></pre>
+  <div class="cfg-block"><code>server {
+    listen 443 ssl http2;
+    server_name yourdomain.example.com;
+
+    ssl_certificate     /etc/letsencrypt/live/yourdomain.example.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/yourdomain.example.com/privkey.pem;
+
+    # Frontend static files
+    root /opt/infra-agent/app/frontend/dist;
+    index index.html;
+
+    # SPA fallback
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+    # Backend API
+    location /api/ {
+        proxy_pass         http://127.0.0.1:8001;
+        proxy_http_version 1.1;
+        proxy_set_header   Host $host;
+        proxy_set_header   X-Real-IP $remote_addr;
+        proxy_set_header   X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header   X-Forwarded-Proto $scheme;
+        proxy_read_timeout 300s;    # allow long-running AI responses
+    }
+
+    # SSE — disable buffering so tokens stream immediately
+    location /api/chats/ {
+        proxy_pass         http://127.0.0.1:8001;
+        proxy_buffering    off;
+        proxy_cache        off;
+        proxy_read_timeout 300s;
+        proxy_set_header   Connection '';
+        chunked_transfer_encoding on;
+    }
+
+    # Other backend paths
+    location ~ ^/(systems|ssh-keys|ssh-key|ssh-test|ssh-setup) {
+        proxy_pass http://127.0.0.1:8001;
+        proxy_set_header Host $host;
+    }
+}</code></div>
+  <pre><code>sudo ln -s /etc/nginx/sites-available/aiagent /etc/nginx/sites-enabled/
+sudo nginx -t &amp;&amp; sudo systemctl reload nginx</code></pre>
+
+  <h2>Production environment variables</h2>
+  <table>
+    <tr><th>Variable</th><th>Production value</th></tr>
+    <tr><td><code>API_HOST</code></td><td><code>127.0.0.1</code> (listen only on loopback, Nginx proxies)</td></tr>
+    <tr><td><code>CORS_ORIGINS</code></td><td><code>["https://yourdomain.example.com"]</code></td></tr>
+    <tr><td><code>PUBLIC_BASE_URL</code></td><td><code>https://yourdomain.example.com</code></td></tr>
+    <tr><td><code>DATABASE_URL</code></td><td>PostgreSQL connection string</td></tr>
+    <tr><td><code>LOG_LEVEL</code></td><td><code>INFO</code> or <code>WARNING</code></td></tr>
+    <tr><td><code>STRICT_SSH_HOST_KEY_CHECKING</code></td><td><code>true</code> (verify known hosts)</td></tr>
+    <tr><td><code>AI_AGENT_ADMIN_PASSWORD</code></td><td>Set before first run, then remove from file</td></tr>
+  </table>
+
+  <h2>Security checklist</h2>
+  <ul>
+    <li>&#9989; Enable authentication (<strong>Settings &rarr; Authentication</strong>)</li>
+    <li>&#9989; Change the default <code>admin</code> password after first login</li>
+    <li>&#9989; Set <code>CORS_ORIGINS</code> to your exact domain (no wildcards)</li>
+    <li>&#9989; Enable <code>STRICT_SSH_HOST_KEY_CHECKING=true</code></li>
+    <li>&#9989; Use PostgreSQL instead of SQLite</li>
+    <li>&#9989; Run backend as a non-root system user (<code>www-data</code> or dedicated)</li>
+    <li>&#9989; Back up <code>data/secret_key.txt</code> and <code>data/ssh_keys/</code> — these are irreplaceable</li>
+    <li>&#9989; Configure firewall: only ports 80 and 443 should be publicly accessible</li>
+    <li>&#9989; Set up HTTPS with Let's Encrypt (<code>certbot --nginx</code>)</li>
+  </ul>
+
+  <div class="callout callout-danger">
+    <strong>Never expose port 8001 directly to the internet.</strong> The backend must sit behind Nginx (or another reverse proxy) so that authentication middleware, HTTPS, and rate limiting are enforced at the network boundary.
+  </div>
+</div>
+
+
+<!-- PAGE 4 — INTERFACE -->
+<div class="page" id="page-4">
+  <h1 class="page-title">Interface &amp; Navigation</h1>
+  <p class="page-sub">Layout overview, navigation structure, theme, and keyboard shortcuts.</p>
+
+  <img src="images/chat.png" alt="Main interface" class="screenshot">
+  <p class="caption">Main screen &mdash; collapsible sidebar + content area</p>
+
+  <h2>Layout</h2>
+  <p>The interface uses a fixed two-column layout:</p>
+  <ul>
+    <li><strong>Left sidebar (242 px)</strong> &mdash; vertical navigation, <em>+ New Chat</em> button at the top, Light/Dark toggle at the bottom. Collapses to icon-only on mobile.</li>
+    <li><strong>Main content area</strong> &mdash; the active section fills the remaining width, scrolls independently from the sidebar.</li>
+  </ul>
+
+  <h2>Sidebar sections</h2>
+  <table>
+    <tr><th>Section</th><th>Purpose</th></tr>
+    <tr><td><strong>Chat</strong></td><td>Main AI agent conversation interface. Includes history panel and model/host picker.</td></tr>
+    <tr><td><strong>Models</strong></td><td>Configure LLM providers, save API keys, test connectivity.</td></tr>
+    <tr><td><strong>Usage</strong></td><td>Token consumption charts per model and per day over the last 14 days.</td></tr>
+    <tr><td><strong>Logs</strong></td><td>Structured application events (SSH, auth, chat, models, cron, backup) with advanced filtering.</td></tr>
+    <tr><td><strong>Cron Jobs</strong></td><td>Create and manage scheduled AI prompts.</td></tr>
+    <tr><td><strong>SSH Manager</strong></td><td>Register hosts, generate SSH keys, run the setup wizard, test connections.</td></tr>
+    <tr><td><strong>AI Safety</strong></td><td>Choose a safety preset and customize allowed/blocked command lists.</td></tr>
+    <tr><td><strong>Backup</strong></td><td>Export a full or partial snapshot of the application data; import to restore.</td></tr>
+    <tr><td><strong>Settings</strong></td><td>Theme toggle, authentication on/off, user management, app version info.</td></tr>
+  </table>
+
+  <h2>Theme</h2>
+  <p>Click <strong>Light mode / Dark mode</strong> at the bottom of the sidebar to toggle. The preference is persisted in <code>localStorage</code> and applied on every subsequent visit. All sections and components fully support both themes.</p>
+
+  <h2>Keyboard shortcuts</h2>
+  <table>
+    <tr><th>Shortcut</th><th>Action</th></tr>
+    <tr><td><kbd>Enter</kbd></td><td>Send chat message (when input is focused)</td></tr>
+    <tr><td><kbd>Shift</kbd>+<kbd>Enter</kbd></td><td>New line in chat input</td></tr>
+    <tr><td><kbd>&#8592;</kbd> / <kbd>&#8594;</kbd></td><td>Navigate between documentation pages (this site only)</td></tr>
+  </table>
+
+  <h2>Mobile &amp; responsive</h2>
+  <p>On viewports narrower than the sidebar breakpoint, the sidebar hides and a hamburger button appears in the top-left corner. Tapping it opens the sidebar as a full-height overlay panel. All pages are fully usable on mobile.</p>
+
+  <h2>Authentication states</h2>
+  <table>
+    <tr><th>State</th><th>Behaviour</th></tr>
+    <tr><td>Auth disabled (default)</td><td>App is fully accessible without any login. All users share a single implicit &ldquo;admin&rdquo; session.</td></tr>
+    <tr><td>Auth enabled, logged in</td><td>Normal operation. JWT token stored in <code>localStorage</code>; injected into every API request.</td></tr>
+    <tr><td>Auth enabled, not logged in</td><td>Login page shown instead of the main app. No API calls are made.</td></tr>
+    <tr><td>Token expired</td><td>The 401 interceptor clears the token and fires an <code>auth:logout</code> event, returning the user to the login page.</td></tr>
+  </table>
+</div>
+
+
+<!-- PAGE 5 — CHAT & AI AGENT -->
+<div class="page" id="page-5">
+  <h1 class="page-title">Chat &amp; AI Agent</h1>
+  <p class="page-sub">How the ReAct agent works, writing prompts, streaming, attachments, and the approval flow.</p>
+
+  <img src="images/chat.png" alt="Chat interface" class="screenshot">
+
+  <h2>How the ReAct loop works</h2>
+  <p>The agent uses LangGraph's ReAct pattern: it <strong>reasons</strong> about your request, <strong>acts</strong> by calling one of its SSH tools, then <strong>observes</strong> the result before deciding the next step. This loop continues until the agent has gathered enough information to write a final answer.</p>
+  <p>If a tool call fails (e.g. SSH connection dropped, command returned non-zero), the agent does not give up immediately. It analyses the failure and <strong>retries autonomously up to 3 times</strong>, adjusting its approach each time. Only hard blockers (missing credentials, explicit deny by the user) stop the loop immediately.</p>
+
+  <h2>Available tools</h2>
+  <table>
+    <tr><th>Tool</th><th>What it does</th></tr>
+    <tr><td><code>list_known_systems</code></td><td>Returns all registered SSH hosts with their hierarchy</td></tr>
+    <tr><td><code>list_ssh_keys_available</code></td><td>Lists available SSH keys for authentication</td></tr>
+    <tr><td><code>ssh_get_resources</code></td><td>Reads CPU, memory, and disk usage via <code>top</code>, <code>free</code>, <code>df</code></td></tr>
+    <tr><td><code>ssh_check_service</code></td><td>Runs <code>systemctl is-active</code> for a named service</td></tr>
+    <tr><td><code>ssh_get_logs</code></td><td>Reads <code>journalctl -u &lt;service&gt;</code> logs</td></tr>
+    <tr><td><code>ssh_get_system_logs</code></td><td>Reads journal, boot, kernel, auth, or syslog</td></tr>
+    <tr><td><code>ssh_check_network</code></td><td>Pings a target host from the remote server</td></tr>
+    <tr><td><code>ssh_run_command</code></td><td>Executes an arbitrary shell command (subject to safety validation)</td></tr>
+  </table>
+
+  <h2>Starting a conversation</h2>
+  <ol>
+    <li>Click <strong>+ New Chat</strong> in the sidebar.</li>
+    <li>Select an <strong>LLM model</strong> from the picker at the top. <em>Auto-detect</em> picks the first configured provider.</li>
+    <li>Optionally select a <strong>target host</strong> from the dropdown next to the model. If set, the agent will use that host by default without needing to be told.</li>
+    <li>Type your request and press <kbd>Enter</kbd> or click the send button.</li>
+  </ol>
+
+  <h2>Writing effective prompts</h2>
+  <ul>
+    <li><em>"Check disk usage on web-01 and tell me which directories are largest"</em></li>
+    <li><em>"Is nginx running on prod? If not, check the logs for the last 100 lines"</em></li>
+    <li><em>"My API is slow. Check CPU, memory and connections on db-host"</em></li>
+    <li><em>"Restart the docker service on staging — but check first that no containers are running"</em></li>
+    <li><em>"Show me all failed systemd units across all registered hosts"</em></li>
+    <li><em>"Check /var/log/auth.log on bastion for failed root login attempts in the last hour"</em></li>
+  </ul>
+  <p>Be specific about which host, which service, and what outcome you want. The more context you give, the fewer clarifying tool calls the agent needs to make.</p>
+
+  <h2>Response streaming</h2>
+  <p>Tokens are delivered in real time via <strong>Server-Sent Events (SSE)</strong>. The user message and an assistant placeholder are saved to the database immediately when you send. If you close the browser tab mid-stream, the AI task continues running independently in the background — the full response will be available when you reopen the chat. Server restarts reset in-progress messages to <em>failed</em>.</p>
+
+  <h2>Attachments</h2>
+  <p>Click the <strong>&#128206;</strong> icon or drag and drop a file onto the input box.</p>
+  <table>
+    <tr><th>File type</th><th>How it is handled</th><th>Size limit</th></tr>
+    <tr><td><code>.txt</code> <code>.log</code> <code>.conf</code> <code>.yaml</code> <code>.toml</code></td><td>Full content passed to agent context</td><td>~50 KB recommended</td></tr>
+    <tr><td><code>.json</code></td><td>Parsed and included as structured data</td><td>~50 KB recommended</td></tr>
+    <tr><td><code>.pdf</code></td><td>Text extracted via pypdf, passed as plain text</td><td>10 pages max</td></tr>
+    <tr><td><code>.png</code> <code>.jpg</code> <code>.webp</code></td><td>Described visually by the model (requires multimodal model)</td><td>5 MB</td></tr>
+  </table>
+
+  <h2>Approval flow</h2>
+  <p>When the safety classifier marks a command as <strong>high-risk</strong> or <strong>critical</strong>, the agent raises an approval request before executing. A card appears in the chat showing:</p>
+  <ul>
+    <li>The exact shell command that would be executed</li>
+    <li>The target system name and IP</li>
+    <li>The risk classification and reason (e.g. <em>"service restart"</em>, <em>"file write"</em>)</li>
+  </ul>
+  <p>Click <strong>Approve</strong> to let the agent proceed, or <strong>Deny</strong> to reject it. On denial, the agent receives the rejection and can propose an alternative approach or explain why the action is needed.</p>
+
+  <h2>Context window &amp; memory</h2>
+  <p>Long conversations are automatically compressed to stay within the model's context window. The compressor summarises older messages and keeps the most recent exchanges intact. The agent also maintains two memory layers:</p>
+  <ul>
+    <li><strong>Short-term memory</strong> &mdash; per-session state (current target host, recent tool results). Cleared when the session ends.</li>
+    <li><strong>Long-term memory</strong> &mdash; persisted in the <code>AgentMemory</code> DB table. The agent stores observations about hosts (e.g. <em>"this host uses nft, not iptables"</em>) and retrieves them in future sessions.</li>
+  </ul>
+
+  <h2>Chat history</h2>
+  <p>The <strong>History</strong> panel (left side of the Chat screen) lists all conversations. Each chat can be:</p>
+  <ul>
+    <li><strong>Renamed</strong> &mdash; click the pencil icon or double-click the title</li>
+    <li><strong>Deleted</strong> &mdash; click the trash icon (permanent)</li>
+    <li><strong>Searched</strong> &mdash; use the search field above the list</li>
+  </ul>
+</div>
+
+
+<!-- PAGE 6 — SSH MANAGER -->
+<div class="page" id="page-6">
+  <h1 class="page-title">SSH Manager</h1>
+  <p class="page-sub">Register hosts, manage SSH keys, configure connections, and organise your infrastructure.</p>
+
+  <img src="images/ssh-manager-hosts.png" alt="SSH Manager" class="screenshot">
+
+  <h2>Adding a host</h2>
+  <p>Click <strong>+ Add host</strong>. Two setup modes are available:</p>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">AI Agent Setup &nbsp;<span class="badge badge-purple">recommended</span></div>
+      <div class="card-desc">Generates a one-command root script that creates the dedicated <code>aiagent</code> user, installs the app's public key, and configures passwordless sudo. Zero manual configuration on the target.</div>
+    </div>
+    <div class="card">
+      <div class="card-title">Use Existing User</div>
+      <div class="card-desc">Connect as any pre-existing SSH user. Enter host, port, username, and select a key from the key list (or provide a password). Useful for hosts you already manage.</div>
+    </div>
+  </div>
+
+  <img src="images/ssh-manager-hosts-2.png" alt="SSH Manager add host form" class="screenshot">
+  <p class="caption">AI Agent Setup form — generates a one-command setup script</p>
+
+  <h2>AI Agent Setup — step by step</h2>
+  <ol>
+    <li>Enter <strong>System name</strong> (friendly label), <strong>Host/IP</strong>, <strong>Username</strong> (default: <code>aiagent</code>), and <strong>SSH Port</strong> (default: 22).</li>
+    <li>Choose which security options to apply (see table below).</li>
+    <li>Click <strong>Generate AI Agent Setup</strong>.</li>
+    <li>Copy the generated command and run it as <strong>root</strong> on the target machine.</li>
+    <li>Return to the app, click <strong>Test</strong> to verify the connection.</li>
+  </ol>
+
+  <h2>Security options</h2>
+  <table>
+    <tr><th>Option</th><th>What it does</th><th>Required?</th></tr>
+    <tr><td>Passwordless sudo (NOPASSWD:ALL)</td><td>Adds <code>aiagent ALL=(ALL) NOPASSWD:ALL</code> to sudoers</td><td><strong>Yes</strong> — needed for service management and package ops</td></tr>
+    <tr><td>Disable SSH password auth</td><td>Sets <code>PasswordAuthentication no</code> in sshd_config, reloads sshd</td><td>Strongly recommended</td></tr>
+    <tr><td>Disable root SSH login</td><td>Sets <code>PermitRootLogin no</code> in sshd_config</td><td>Recommended for production</td></tr>
+  </table>
+
+  <h2>SSH keys</h2>
+  <p>The <strong>SSH Keys</strong> section lists all keys generated by the app. Each key is:</p>
+  <ul>
+    <li>Generated as <strong>Ed25519</strong> (OpenSSH format) — fast, modern, and compact</li>
+    <li>Stored at <code>data/ssh_keys/&lt;name&gt;</code> (private key) and <code>data/ssh_keys/&lt;name&gt;.pub</code></li>
+    <li>Associated to one or more hosts at creation time</li>
+    <li>Deletable individually (the public key is revoked from the host's <code>authorized_keys</code> if you remove it from the host record first)</li>
+  </ul>
+
+  <div class="callout callout-warn">
+    <strong>Back up your keys.</strong> The <code>data/ssh_keys/</code> directory is not committed to git. Include SSH Key Files in your periodic backups from the Backup page.
+  </div>
+
+  <h2>Host hierarchy</h2>
+  <p>Each host can have a <strong>parent</strong>, allowing you to model multi-tier infrastructure:</p>
+  <pre><code>Datacenter EU-West
+├── Rack A
+│   ├── web-01  (192.168.1.10)
+│   └── web-02  (192.168.1.11)
+└── Rack B
+    └── db-01   (192.168.1.20)</code></pre>
+  <p>The agent is aware of this hierarchy and uses it when you refer to groups of hosts (e.g. <em>"check all hosts in Rack A"</em>).</p>
+
+  <h2>Host notes</h2>
+  <p>Each host has a <strong>Notes</strong> field that supports full Markdown. Use it to document:</p>
+  <ul>
+    <li>Special sudo rules or known quirks</li>
+    <li>Services running on the host</li>
+    <li>Maintenance windows or contact information</li>
+    <li>Any host-specific context you want the agent to be aware of</li>
+  </ul>
+  <p>Notes are included in the agent's context when it connects to that host.</p>
+
+  <h2>Connection test</h2>
+  <p>Click <strong>Test</strong> on any host card to run a live SSH connectivity check from the backend. On success you see the host key fingerprint (Ed25519 or RSA). On failure you get the exact Paramiko error — useful for diagnosing key mismatches, port issues, or firewall blocks.</p>
+
+  <div class="callout callout-info">
+    <strong>Host key checking:</strong> by default the app uses TOFU (Trust On First Use) — the host key is accepted and recorded on first connection. For production deployments, set <code>STRICT_SSH_HOST_KEY_CHECKING=true</code> in <code>.env</code> to reject unknown hosts.
+  </div>
+</div>
+
+
+<!-- PAGE 7 — LLM MODELS -->
+<div class="page" id="page-7">
+  <h1 class="page-title">LLM Models</h1>
+  <p class="page-sub">Configure AI providers, manage API keys, and choose the right model for your use case.</p>
+
+  <img src="images/models.png" alt="Models page" class="screenshot">
+
+  <h2>Supported providers</h2>
+  <div class="prov-grid">
+    <div class="prov-item"><div class="prov-dot" style="background:#F55036"></div>Groq</div>
+    <div class="prov-item"><div class="prov-dot" style="background:#74AA9C"></div>OpenAI</div>
+    <div class="prov-item"><div class="prov-dot" style="background:#D4A574"></div>Anthropic</div>
+    <div class="prov-item"><div class="prov-dot" style="background:#4285F4"></div>Google Gemini</div>
+    <div class="prov-item"><div class="prov-dot" style="background:#5B5BD6"></div>DeepSeek</div>
+    <div class="prov-item"><div class="prov-dot" style="background:#FF7000"></div>Mistral AI</div>
+    <div class="prov-item"><div class="prov-dot" style="background:#555"></div>xAI (Grok)</div>
+    <div class="prov-item"><div class="prov-dot" style="background:#47A3F3"></div>Perplexity</div>
+    <div class="prov-item"><div class="prov-dot" style="background:#76B900"></div>NVIDIA</div>
+    <div class="prov-item"><div class="prov-dot" style="background:#FF6B35"></div>OpenRouter</div>
+    <div class="prov-item"><div class="prov-dot" style="background:#1677FF"></div>Zhipu AI</div>
+    <div class="prov-item"><div class="prov-dot" style="background:#FF6B6B"></div>HuggingFace</div>
+    <div class="prov-item"><div class="prov-dot" style="background:#222"></div>Ollama &nbsp;<span class="badge badge-green">local</span></div>
+  </div>
+
+  <h2>Configuring a provider</h2>
+  <ol>
+    <li>Go to <strong>Models</strong> in the sidebar.</li>
+    <li>Find the provider card and click the eye icon to show the key field.</li>
+    <li>Paste your <strong>API key</strong>.</li>
+    <li>Click <strong>Save</strong> &mdash; the key is encrypted with Fernet (AES-128-CBC) before being written to the database. The raw value is never stored or returned after this point.</li>
+    <li>Click <strong>Test</strong> to send a minimal request to the provider's API and confirm the key is valid.</li>
+  </ol>
+
+  <h2>Provider notes</h2>
+  <table>
+    <tr><th>Provider</th><th>Notes</th><th>Get key</th></tr>
+    <tr><td>Groq</td><td>Fastest inference, free tier, ideal for development</td><td>console.groq.com</td></tr>
+    <tr><td>OpenAI</td><td>GPT-4.x and o-series reasoning models</td><td>platform.openai.com</td></tr>
+    <tr><td>Anthropic</td><td>Claude Sonnet/Opus — strong reasoning and long context</td><td>console.anthropic.com</td></tr>
+    <tr><td>Google Gemini</td><td>Gemini 2.5 Pro — very large context window (1M tokens)</td><td>aistudio.google.com</td></tr>
+    <tr><td>DeepSeek</td><td>Cost-efficient, strong at code and analysis</td><td>platform.deepseek.com</td></tr>
+    <tr><td>Ollama</td><td>Fully local, no API key, no data leaves your machine</td><td>ollama.ai</td></tr>
+  </table>
+
+  <h2>Ollama — local models</h2>
+  <p>To use local models, install and run Ollama on the same machine as the backend:</p>
+  <pre><code># Install Ollama
+curl -fsSL https://ollama.ai/install.sh | sh
+
+# Pull a model
+ollama pull llama3.2
+ollama pull qwen2.5-coder
+
+# Start the server (runs on port 11434)
+ollama serve</code></pre>
+  <p>Then in the app, go to <strong>Models</strong> &rarr; <strong>Ollama</strong> card &rarr; click <strong>Enable</strong>. No API key needed. All downloaded models will appear in the chat model picker.</p>
+
+  <h2>Choosing the right model</h2>
+  <table>
+    <tr><th>Use case</th><th>Recommendation</th><th>Why</th></tr>
+    <tr><td>Fast day-to-day diagnostics</td><td>Groq / Llama 3.3 70B</td><td>Sub-second inference, free</td></tr>
+    <tr><td>Complex multi-step troubleshooting</td><td>Claude Sonnet 4.6 or GPT-4.1</td><td>Strong reasoning, tool use</td></tr>
+    <tr><td>Air-gapped / no internet</td><td>Ollama / Llama 3.2</td><td>Fully local, no API calls</td></tr>
+    <tr><td>Long log analysis (&gt;100K tokens)</td><td>Gemini 2.5 Pro</td><td>1M token context window</td></tr>
+    <tr><td>Cost-sensitive production</td><td>DeepSeek V3 or Mistral</td><td>Cheap per token, capable</td></tr>
+  </table>
+
+  <h2>API key security</h2>
+  <p>Keys are encrypted at rest using <strong>Fernet symmetric encryption</strong>. The encryption key is derived from your JWT secret (stored in <code>data/secret_key.txt</code>). To rotate a key: paste the new value in the provider card and save — the old encrypted value is overwritten. If you lose <code>secret_key.txt</code>, all stored API keys must be re-entered.</p>
+
+  <div class="callout callout-warn">
+    <strong>Backup with API keys:</strong> always set an encryption password when a backup includes the &ldquo;AI Models &amp; API Keys&rdquo; section. Without a password the keys are obfuscated but not securely encrypted in the export file.
+  </div>
+</div>
+
+
+<!-- PAGE 8 — CRON JOBS -->
+<div class="page" id="page-8">
+  <h1 class="page-title">Cron Jobs</h1>
+  <p class="page-sub">Schedule recurring AI prompts for automated monitoring, health checks, and diagnostics.</p>
+
+  <img src="images/cron-jobs.png" alt="Cron Jobs" class="screenshot">
+
+  <h2>What are Cron Jobs</h2>
+  <p>A Cron Job is an <strong>AI prompt executed automatically on a schedule</strong>. Each run is functionally identical to opening a new chat and typing the prompt yourself: the agent receives it, uses SSH tools as needed, and saves the full response to the conversation history. You can review results anytime from the Chat history panel.</p>
+
+  <h2>Creating a job</h2>
+  <p>Click <strong>+ New Job</strong> and fill in the four fields:</p>
+  <table>
+    <tr><th>Field</th><th>Description</th><th>Example</th></tr>
+    <tr><td><strong>Name</strong></td><td>Friendly label for the job</td><td><em>Daily disk check</em></td></tr>
+    <tr><td><strong>Prompt</strong></td><td>The exact text sent to the AI agent</td><td><em>Check disk usage on all registered hosts and alert if any partition exceeds 80%</em></td></tr>
+    <tr><td><strong>Model</strong></td><td>LLM model to use for this job</td><td>Groq / Llama 3.3 70B</td></tr>
+    <tr><td><strong>Schedule</strong></td><td>Cron expression or preset</td><td><code>0 9 * * *</code></td></tr>
+  </table>
+
+  <h2>Cron expression reference</h2>
+  <div class="cron-ref">+--- minute        (0 - 59)
+|  +-- hour         (0 - 23)
+|  |  +-- day       (1 - 31)
+|  |  |  +-- month  (1 - 12)
+|  |  |  |  +-- weekday (0 - 7,  0 and 7 = Sunday)
+|  |  |  |  |
+*  *  *  *  *
+
+Common examples:
+  */15 * * * *     every 15 minutes
+  0 * * * *        every hour on the hour
+  0 9 * * *        every day at 09:00
+  0 9 * * 1-5      weekdays at 09:00
+  0 0 * * 0        every Sunday at midnight
+  0 */6 * * *      every 6 hours
+  0 0 1 * *        1st of every month at midnight
+  30 8 * * 1       every Monday at 08:30</div>
+
+  <h2>Built-in schedule presets</h2>
+  <table>
+    <tr><th>Preset</th><th>Cron expression</th><th>Fires</th></tr>
+    <tr><td>Every hour</td><td><code>0 * * * *</code></td><td>On the hour, every hour</td></tr>
+    <tr><td>Daily 9am</td><td><code>0 9 * * *</code></td><td>Every day at 09:00</td></tr>
+    <tr><td>Daily midnight</td><td><code>0 0 * * *</code></td><td>Every day at 00:00</td></tr>
+    <tr><td>Every Monday</td><td><code>0 9 * * 1</code></td><td>Mondays at 09:00</td></tr>
+    <tr><td>Custom</td><td><em>free-form</em></td><td>As defined</td></tr>
+  </table>
+
+  <h2>Managing jobs</h2>
+  <ul>
+    <li><strong>Enable / disable toggle</strong> &mdash; pauses scheduling without deleting the job or its history.</li>
+    <li><strong>&#9654; Run now</strong> &mdash; executes the job immediately, outside its schedule. Useful for testing.</li>
+    <li><strong>Delete</strong> &mdash; permanently removes the job. Past results remain in Chat history.</li>
+  </ul>
+
+  <h2>Practical use cases</h2>
+  <div class="grid-2">
+    <div class="card"><div class="card-title">Disk monitoring</div><div class="card-desc"><em>"Check disk usage on all hosts. Alert if any partition is above 80% and suggest which directories to investigate."</em></div></div>
+    <div class="card"><div class="card-title">Service health</div><div class="card-desc"><em>"Verify that nginx, docker, and postgresql are running on prod-01. Report any failures."</em></div></div>
+    <div class="card"><div class="card-title">Security audit</div><div class="card-desc"><em>"Check /var/log/auth.log on bastion for failed SSH login attempts in the past 24 hours."</em></div></div>
+    <div class="card"><div class="card-title">Weekly report</div><div class="card-desc"><em>"Summarise system resource trends on all hosts from this week and highlight anything unusual."</em></div></div>
+  </div>
+
+  <div class="callout callout-tip">
+    <strong>Tip:</strong> keep cron job prompts specific and action-oriented. Vague prompts generate vague answers. Include thresholds, time windows, and expected outcomes in the prompt text.
+  </div>
+</div>
+
+
+<!-- PAGE 9 — LOGS & MONITORING -->
+<div class="page" id="page-9">
+  <h1 class="page-title">Logs &amp; Monitoring</h1>
+  <p class="page-sub">Structured application events, advanced filtering, entry detail view, and export.</p>
+
+  <img src="images/logs-page.png" alt="Logs page" class="screenshot">
+
+  <h2>Log entry structure</h2>
+  <table>
+    <tr><th>Field</th><th>Type</th><th>Description</th></tr>
+    <tr><td><code>timestamp</code></td><td>datetime UTC</td><td>Exact time of the event</td></tr>
+    <tr><td><code>level</code></td><td>enum</td><td><span class="badge badge-blue">INFO</span> &nbsp;<span class="badge badge-orange">WARNING</span> &nbsp;<span class="badge badge-red">ERROR</span></td></tr>
+    <tr><td><code>category</code></td><td>string</td><td>Functional area (see below)</td></tr>
+    <tr><td><code>event_type</code></td><td>string</td><td>Specific event within a category</td></tr>
+    <tr><td><code>message</code></td><td>string</td><td>Human-readable description</td></tr>
+    <tr><td><code>details</code></td><td>JSON</td><td>Structured payload (stdout, stderr, exit code, duration ms, error)</td></tr>
+    <tr><td><code>host</code></td><td>string</td><td>SSH host involved (when applicable)</td></tr>
+    <tr><td><code>username</code></td><td>string</td><td>App user who triggered the event</td></tr>
+    <tr><td><code>model</code></td><td>string</td><td>LLM model used (for chat/model events)</td></tr>
+    <tr><td><code>chat_id</code></td><td>integer</td><td>Chat ID the event belongs to (when applicable)</td></tr>
+  </table>
+
+  <h2>Categories and common event types</h2>
+  <table>
+    <tr><th>Category</th><th>Common event types</th></tr>
+    <tr><td><code>ssh</code></td><td><code>connect_success</code>, <code>connect_error</code>, <code>command_success</code>, <code>command_error</code>, <code>command_blocked</code>, <code>disconnect_success</code></td></tr>
+    <tr><td><code>auth</code></td><td><code>login_success</code>, <code>login_failed</code>, <code>account_locked</code>, <code>default_admin_created</code>, <code>auth_toggled</code>, <code>user_created</code>, <code>user_deleted</code></td></tr>
+    <tr><td><code>chat</code></td><td><code>message_received</code>, <code>agent_started</code>, <code>agent_completed</code>, <code>approval_requested</code>, <code>approval_resolved</code></td></tr>
+    <tr><td><code>model</code></td><td><code>provider_saved</code>, <code>provider_tested</code>, <code>llm_invoked</code>, <code>token_usage</code></td></tr>
+    <tr><td><code>system</code></td><td><code>startup</code>, <code>shutdown</code></td></tr>
+    <tr><td><code>cron</code></td><td><code>job_started</code>, <code>job_completed</code>, <code>job_error</code></td></tr>
+    <tr><td><code>backup</code></td><td><code>export_completed</code>, <code>import_completed</code>, <code>import_failed</code></td></tr>
+    <tr><td><code>logging</code></td><td><code>logs_cleared</code></td></tr>
+  </table>
+
+  <h2>Stats dashboard</h2>
+  <p>Four summary cards at the top of the Logs page show totals for the selected time window: <strong>Total Events</strong>, <strong>Info</strong>, <strong>Warnings</strong>, and <strong>Errors</strong>. Useful for a quick health overview at a glance.</p>
+
+  <h2>Filtering</h2>
+  <ul>
+    <li><strong>Search</strong> &mdash; full-text search across <code>message</code>, <code>event_type</code>, <code>host</code>, <code>username</code>, <code>model</code>, and <code>details</code> (JSON content)</li>
+    <li><strong>Level</strong> &mdash; filter to INFO, WARNING, or ERROR</li>
+    <li><strong>Category</strong> &mdash; populated dynamically from categories present in the current dataset</li>
+    <li><strong>Start time / End time</strong> &mdash; datetime-local inputs for arbitrary time windows</li>
+  </ul>
+  <p>Filters are combined with AND logic. Changing any filter resets to page 1.</p>
+
+  <h2>Entry detail</h2>
+  <p>Click <strong>Details</strong> on any log row to expand the full JSON payload. For SSH events this includes the raw <code>stdout</code>, <code>stderr</code>, <code>exit_code</code>, and <code>duration_ms</code>. For errors it shows the full Python exception message.</p>
+
+  <h2>Export</h2>
+  <p>The <strong>Export</strong> button downloads the current filtered view as a plain-text file (max 2,000 rows). Each line format:</p>
+  <pre><code>[2025-05-19T14:32:11] [INFO] [ssh/connect_success] host=web-01 user=admin model=- :: SSH connection established to web-01:22
+{"connection_id": "web-01_22_aiagent_a1b2c3d4", "port": 22, "duration_ms": 183, "host_key_fingerprint": "ab:cd:..."}</code></pre>
+
+  <h2>Retention &amp; cleanup</h2>
+  <ul>
+    <li><strong>Automatic:</strong> on every backend startup, entries older than <code>LOG_RETENTION_DAYS</code> (default: 30) are purged automatically.</li>
+    <li><strong>Manual clear:</strong> the <strong>Clear</strong> button deletes all entries. The operation itself is logged as a <code>WARNING / logs_cleared</code> event immediately after.</li>
+  </ul>
+</div>
+
+
+<!-- PAGE 10 — BACKUP & AI SAFETY -->
+<div class="page" id="page-10">
+  <h1 class="page-title">Backup &amp; AI Safety</h1>
+  <p class="page-sub">Export and restore application data, configure safety presets, and manage command allow/block lists.</p>
+
+  <img src="images/backup.png" alt="Backup page" class="screenshot">
+
+  <h2>Export</h2>
+  <p>Select which data sections to include in the export file (<code>.aib</code> format, JSON under the hood):</p>
+  <table>
+    <tr><th>Section</th><th>Contents</th><th>Sensitive</th></tr>
+    <tr><td>Users &amp; Auth</td><td>User accounts, Argon2id password hashes, roles, auth settings</td><td>No</td></tr>
+    <tr><td>AI Models &amp; API Keys</td><td>Provider configs and encrypted API keys</td><td><span class="badge badge-red">Yes</span></td></tr>
+    <tr><td>SSH Systems</td><td>Registered hosts, hierarchy, notes, connection config</td><td>No</td></tr>
+    <tr><td>SSH Key Files</td><td>Private and public key file contents from <code>data/ssh_keys/</code></td><td><span class="badge badge-red">Yes</span></td></tr>
+    <tr><td>Chat History</td><td>All conversations, messages, approval records, attachment metadata</td><td>No</td></tr>
+    <tr><td>Cron Jobs</td><td>Job definitions and schedules</td><td>No</td></tr>
+    <tr><td>Agent Memory</td><td>Cross-session long-term memory entries per host</td><td>No</td></tr>
+    <tr><td>Usage Statistics</td><td>Token usage logs per model</td><td>No</td></tr>
+  </table>
+  <p>If the backup includes a sensitive section, enter an <strong>encryption password</strong>. The <code>.aib</code> file is then end-to-end encrypted before download. Without a password the sensitive fields are obfuscated (base64) but not securely protected.</p>
+
+  <h2>Import &amp; restore</h2>
+  <ol>
+    <li>Drag the <code>.aib</code> file into the drop zone, or click <strong>Browse</strong> to select it.</li>
+    <li>If the file is encrypted, enter the password in the field that appears.</li>
+    <li>Click <strong>Preview</strong> to see a summary of what sections are present and how many records each contains.</li>
+    <li>Click <strong>Import Backup</strong> to restore. Imported data <em>overwrites</em> the corresponding existing data.</li>
+  </ol>
+
+  <div class="callout callout-danger">
+    <strong>Import is destructive.</strong> Always export a fresh backup of the current state before importing. There is no undo — existing records in the selected sections are replaced.
+  </div>
+
+  <h2>Recommended backup schedule</h2>
+  <ul>
+    <li>Export <strong>weekly</strong> including SSH Systems, Chat History, and Cron Jobs (no encryption needed)</li>
+    <li>Export <strong>monthly</strong> including SSH Key Files and AI Models &amp; API Keys with a strong password</li>
+    <li>Store encrypted backups in a separate location from the server</li>
+  </ul>
+
+  <hr>
+
+  <img src="images/ai-safety.png" alt="AI Safety page" class="screenshot">
+  <p class="caption">AI Safety &mdash; presets and command lists</p>
+
+  <h2>AI Safety presets</h2>
+  <p>Presets define which classes of operations the agent is allowed to perform. Choose the level appropriate for your environment and risk tolerance:</p>
+  <table>
+    <tr><th>Preset</th><th>Allowed operations</th><th>Approval required for</th></tr>
+    <tr><td><span class="badge badge-red">Strict</span></td><td>Read-only diagnostics: <code>ps</code>, <code>df</code>, <code>free</code>, <code>journalctl</code>, <code>systemctl status</code></td><td>Anything that modifies state</td></tr>
+    <tr><td><span class="badge badge-orange">Balanced</span></td><td>Diagnostics + safe service restarts and log reads</td><td>Network changes, file writes, package operations</td></tr>
+    <tr><td><span class="badge badge-blue">Operator</span></td><td>Full service lifecycle, log access, network diagnostics</td><td>Destructive operations (delete, format, wipe)</td></tr>
+    <tr><td><span class="badge badge-green">Full Access</span></td><td>All operations</td><td>Nothing (bypasses approval flow)</td></tr>
+  </table>
+
+  <h2>Command allow &amp; block lists</h2>
+  <p>In addition to the preset, you can add per-rule overrides:</p>
+  <ul>
+    <li><strong>Allowed Commands</strong> &mdash; explicitly permit a command pattern even if the preset would block it. Added as glob patterns (e.g. <code>systemctl restart nginx*</code>).</li>
+    <li><strong>Blocked Commands</strong> &mdash; always reject a command pattern regardless of preset level. The validator checks this list before the agent even attempts execution. Added as exact strings or patterns.</li>
+  </ul>
+
+  <h2>How the validator works</h2>
+  <p>Every <code>ssh_run_command</code> call passes through <code>tools/validator.py</code> before execution:</p>
+  <ol>
+    <li><strong>Forbidden patterns</strong> &mdash; immediate block (e.g. <code>rm -rf /</code>, <code>:(){:|:&amp;};:</code>, <code>mkfs</code>)</li>
+    <li><strong>Blocked commands list</strong> &mdash; your custom block rules</li>
+    <li><strong>Risk classifier</strong> &mdash; assigns <em>critical</em>, <em>high</em>, <em>medium</em>, or <em>low</em> risk</li>
+    <li><strong>Approval gate</strong> &mdash; if the risk level requires approval (based on preset), execution is suspended until the user acts</li>
+    <li><strong>Execution</strong> &mdash; command is sent via Paramiko if all checks pass</li>
+  </ol>
+</div>
+
+
+<!-- PAGE 11 — SETTINGS, AUTH & API -->
+<div class="page" id="page-11">
+  <h1 class="page-title">Settings, Auth &amp; API Reference</h1>
+  <p class="page-sub">Theme, authentication configuration, user management, token usage, and a full API endpoint reference.</p>
+
+  <div class="grid-2">
+    <img src="images/settings.png" alt="Settings" class="screenshot" style="margin-top:0">
+    <img src="images/usage.png" alt="Usage" class="screenshot" style="margin-top:0">
+  </div>
+
+  <h2>Theme</h2>
+  <p>Toggle <strong>Light / Dark</strong> from the Settings page or the sidebar. Preference is stored in <code>localStorage</code> and applied on load.</p>
+
+  <h2>Authentication</h2>
+  <p>The <strong>Authentication</strong> card shows the current state (enabled / disabled) with a toggle. Changing this state is logged as a <code>WARNING</code> event.</p>
+  <table>
+    <tr><th>Setting</th><th>Default</th><th>Description</th></tr>
+    <tr><td>Session timeout</td><td>24 h</td><td>JWT token lifetime. Users must re-login after expiry.</td></tr>
+    <tr><td>Max failed attempts</td><td>5</td><td>Consecutive failed logins before the account is locked.</td></tr>
+    <tr><td>Lockout duration</td><td>15 min</td><td>How long a locked account remains inaccessible.</td></tr>
+  </table>
+
+  <h2>User management</h2>
+  <p>With authentication enabled, admin users can manage accounts from the <strong>Users</strong> section:</p>
+  <table>
+    <tr><th>Action</th><th>Notes</th></tr>
+    <tr><td>Create user</td><td>Set username, password, and role (<em>user</em> or <em>admin</em>)</td></tr>
+    <tr><td>Change password</td><td>Admin can reset any user's password; non-admin users can change their own</td></tr>
+    <tr><td>Toggle role</td><td>Promote to admin or demote to regular user</td></tr>
+    <tr><td>Disable account</td><td>Blocks login without deleting the user or their chat history</td></tr>
+    <tr><td>Unlock account</td><td>Manually clears lockout state after too many failed attempts</td></tr>
+  </table>
+
+  <div class="callout callout-info">
+    <strong>Admin bootstrap:</strong> the <code>admin</code> user is created on first run with a random password written to <code>data/bootstrap_admin_password.txt</code>. To pre-configure the password before first run, set <code>AI_AGENT_ADMIN_PASSWORD</code> in <code>.env</code>. Delete or secure the bootstrap file after first login.
+  </div>
+
+  <h2>Token usage</h2>
+  <p>The <strong>Usage</strong> page shows two charts covering all activity (manual chats + cron job runs):</p>
+  <ul>
+    <li><strong>Daily Activity (14 days)</strong> &mdash; token volume per day as a bar chart</li>
+    <li><strong>Usage by Model</strong> &mdash; relative share of consumption per LLM model</li>
+  </ul>
+  <p>Raw data is stored in the <code>UsageLogs</code> table and surfaced via <code>GET /api/usage/summary</code>, <code>/api/usage/by-model</code>, and <code>/api/usage/daily</code>.</p>
+
+  <hr>
+
+  <h2>API reference</h2>
+  <p>The backend exposes a REST API. With authentication enabled, include the header <code>Authorization: Bearer &lt;token&gt;</code> on every request (except the three public endpoints below).</p>
+
+  <h3>Authentication</h3>
+  <table>
+    <tr><th>Endpoint</th><th>Method</th><th>Body / Params</th><th>Returns</th></tr>
+    <tr><td><code>/api/auth/config</code></td><td>GET</td><td>&mdash;</td><td><code>{enabled: bool}</code> &mdash; public</td></tr>
+    <tr><td><code>/api/auth/login</code></td><td>POST</td><td><code>{username, password}</code></td><td><code>{access_token, token_type}</code> &mdash; public</td></tr>
+    <tr><td><code>/api/auth/users</code></td><td>GET</td><td>&mdash;</td><td>List of user objects (admin only)</td></tr>
+    <tr><td><code>/api/auth/users</code></td><td>POST</td><td><code>{username, password, is_admin}</code></td><td>Created user (admin only)</td></tr>
+    <tr><td><code>/api/auth/users/{username}</code></td><td>PATCH</td><td><code>{password?, is_admin?, is_active?}</code></td><td>Updated user</td></tr>
+    <tr><td><code>/api/auth/users/{username}</code></td><td>DELETE</td><td>&mdash;</td><td>204 No Content</td></tr>
+  </table>
+
+  <h3>Chat</h3>
+  <table>
+    <tr><th>Endpoint</th><th>Method</th><th>Notes</th></tr>
+    <tr><td><code>/api/chats</code></td><td>GET</td><td>List all chats, sorted by updated_at desc</td></tr>
+    <tr><td><code>/api/chats</code></td><td>POST</td><td>Create chat <code>{title?, model?, target_host?}</code></td></tr>
+    <tr><td><code>/api/chats/{id}</code></td><td>GET</td><td>Get chat with all messages</td></tr>
+    <tr><td><code>/api/chats/{id}</code></td><td>PATCH</td><td>Update title, model, or target host</td></tr>
+    <tr><td><code>/api/chats/{id}</code></td><td>DELETE</td><td>Delete chat and all messages</td></tr>
+    <tr><td><code>/api/chats/{id}/messages</code></td><td>POST</td><td>Send message — returns SSE stream (<code>text/event-stream</code>)</td></tr>
+    <tr><td><code>/api/chats/{id}/approvals/{aid}</code></td><td>POST</td><td>Resolve approval <code>{action: "approve"|"deny"}</code></td></tr>
+    <tr><td><code>/api/chats/models/available</code></td><td>GET</td><td>Models available in the current provider config</td></tr>
+  </table>
+
+  <h3>Models &amp; Systems</h3>
+  <table>
+    <tr><th>Endpoint</th><th>Method</th><th>Notes</th></tr>
+    <tr><td><code>/api/models/providers</code></td><td>GET</td><td>All provider configs (keys masked)</td></tr>
+    <tr><td><code>/api/models/providers/{id}</code></td><td>PUT</td><td>Save API key <code>{api_key, enabled}</code></td></tr>
+    <tr><td><code>/api/models/providers/{id}/test</code></td><td>POST</td><td>Test provider connectivity</td></tr>
+    <tr><td><code>/systems</code></td><td>GET / POST</td><td>List / create SSH host records</td></tr>
+    <tr><td><code>/systems/{id}</code></td><td>PATCH / DELETE</td><td>Update or remove a host</td></tr>
+    <tr><td><code>/ssh-keys</code></td><td>GET</td><td>List SSH keys</td></tr>
+    <tr><td><code>/ssh-key</code></td><td>POST</td><td>Generate new key <code>{name, system_id?}</code></td></tr>
+    <tr><td><code>/ssh-key/{id}</code></td><td>DELETE</td><td>Delete a key</td></tr>
+    <tr><td><code>/ssh-test</code></td><td>POST</td><td>Test connection <code>{host, port, username, key_id?, password?}</code></td></tr>
+  </table>
+
+  <h3>Logs, Cron &amp; Backup</h3>
+  <table>
+    <tr><th>Endpoint</th><th>Method</th><th>Notes</th></tr>
+    <tr><td><code>/api/logs</code></td><td>GET</td><td>Paginated logs; params: <code>page</code>, <code>page_size</code>, <code>level</code>, <code>category</code>, <code>search</code>, <code>start_time</code>, <code>end_time</code></td></tr>
+    <tr><td><code>/api/logs</code></td><td>DELETE</td><td>Clear all logs</td></tr>
+    <tr><td><code>/api/logs/stats</code></td><td>GET</td><td>Aggregate counts by level and category</td></tr>
+    <tr><td><code>/api/logs/export</code></td><td>GET</td><td>Download filtered logs as plain text</td></tr>
+    <tr><td><code>/api/cron</code></td><td>GET / POST</td><td>List / create cron jobs</td></tr>
+    <tr><td><code>/api/cron/{id}</code></td><td>PATCH / DELETE</td><td>Update or delete a cron job</td></tr>
+    <tr><td><code>/api/cron/{id}/run</code></td><td>POST</td><td>Run job immediately</td></tr>
+    <tr><td><code>/api/backup/export</code></td><td>POST</td><td>Export backup <code>{includes: [...], password?}</code></td></tr>
+    <tr><td><code>/api/backup/import</code></td><td>POST (multipart)</td><td>Import backup file <code>file + password?</code></td></tr>
+    <tr><td><code>/api/backup/import/preview</code></td><td>POST (multipart)</td><td>Preview backup contents without importing</td></tr>
+    <tr><td><code>/api/usage/summary</code></td><td>GET</td><td>Total tokens per model</td></tr>
+    <tr><td><code>/api/usage/daily</code></td><td>GET</td><td>Daily token counts, param: <code>days</code> (default 14)</td></tr>
+    <tr><td><code>/health</code></td><td>GET</td><td><code>{status, version}</code> &mdash; public, no auth</td></tr>
+  </table>
+</div>
+
+
+</div><!-- /content -->
+</div><!-- /content-wrap -->
+
+<div class="page-footer">
+  <button class="nav-btn" id="btn-prev" disabled>&#8592; Previous</button>
+  <span class="page-indicator">Page <b id="cur-page">1</b> of <b id="tot-pages">12</b></span>
+  <button class="nav-btn" id="btn-next">Next &#8594;</button>
+</div>
+
+
+
+</div><!-- /main -->
+
+<script>
+(function () {
+  var pages    = document.querySelectorAll('.page');
+  var navLinks = document.querySelectorAll('[data-page]');
+  var btnPrev  = document.getElementById('btn-prev');
+  var btnNext  = document.getElementById('btn-next');
+  var curEl    = document.getElementById('cur-page');
+  var totEl    = document.getElementById('tot-pages');
+  var wrap     = document.getElementById('content-wrap');
+  var cur = 0;
+
+  totEl.textContent = pages.length;
+
+  function go(n) {
+    pages[cur].classList.remove('active');
+    navLinks[cur].classList.remove('active');
+    cur = Math.max(0, Math.min(pages.length - 1, n));
+    pages[cur].classList.add('active');
+    navLinks[cur].classList.add('active');
+    curEl.textContent = cur + 1;
+    btnPrev.disabled  = (cur === 0);
+    btnNext.disabled  = (cur === pages.length - 1);
+    wrap.scrollTop    = 0;
+    navLinks[cur].scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }
+
+  for (var i = 0; i < navLinks.length; i++) {
+    (function(link) {
+      link.addEventListener('click', function(e) {
+        e.preventDefault();
+        go(parseInt(link.getAttribute('data-page')));
+      });
+    })(navLinks[i]);
+  }
+
+  btnPrev.addEventListener('click', function() { go(cur - 1); });
+  btnNext.addEventListener('click', function() { go(cur + 1); });
+
+  document.addEventListener('keydown', function(e) {
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') go(cur + 1);
+    if (e.key === 'ArrowLeft'  || e.key === 'ArrowUp')   go(cur - 1);
+  });
+
+  go(0);
+
+  document.querySelectorAll('img').forEach(function(img) {
+    img.setAttribute('draggable', 'false');
+    img.addEventListener('contextmenu', function(e) { e.preventDefault(); });
+  });
+})();
+</script>
+</body>
+</html>

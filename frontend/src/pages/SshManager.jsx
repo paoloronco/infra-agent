@@ -1,0 +1,1158 @@
+import React, { useState, useEffect, useMemo } from 'react'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
+import {
+  Plus, Trash2, Copy, ChevronDown, ChevronUp, Key, Wifi, Pencil,
+  X, Check, Server, GripVertical, Network, CornerDownRight,
+  FileText, Eye, Edit3, Bot, Shield, Terminal, Zap, AlertTriangle,
+  CheckCircle2, ChevronRight, Lock, User, Settings2, Info,
+  ShieldCheck, SquareCode, ClipboardCopy,
+} from 'lucide-react'
+import {
+  getSshKeys, createSshKey, deleteSshKey, testSshConnection,
+  getSystems, saveSystem, reorderSystems,
+} from '../api'
+import toast from 'react-hot-toast'
+
+const OS_OPTIONS = [
+  { value: 'linux', label: 'Linux' },
+  { value: 'macos', label: 'macOS' },
+  { value: 'windows10', label: 'Windows 10' },
+  { value: 'windows11', label: 'Windows 11' },
+]
+
+const ROOT_PARENT = '__root__'
+const INPUT_CLS = 'w-full text-sm px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 outline-none focus:ring-1 focus:ring-indigo-500'
+const TEXTAREA_CLS = 'w-full text-sm px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 outline-none focus:ring-1 focus:ring-indigo-500 font-mono resize-y leading-relaxed'
+
+function copyToClipboard(text) {
+  if (navigator.clipboard && window.isSecureContext) return navigator.clipboard.writeText(text)
+  const el = document.createElement('textarea')
+  el.value = text
+  el.style.cssText = 'position:fixed;opacity:0;top:0;left:0'
+  document.body.appendChild(el); el.focus(); el.select()
+  document.execCommand('copy'); document.body.removeChild(el)
+  return Promise.resolve()
+}
+
+function CopyBtn({ text, label = 'Copy' }) {
+  const [copied, setCopied] = useState(false)
+  return (
+    <button
+      onClick={() => { copyToClipboard(text).catch(() => {}); setCopied(true); setTimeout(() => setCopied(false), 2000) }}
+      className="flex items-center gap-1 text-xs px-2 py-1 rounded bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors shrink-0">
+      <Copy size={11} /> {copied ? 'Copied!' : label}
+    </button>
+  )
+}
+
+// ── Markdown notes ────────────────────────────────────────────────────────────
+function NotesEditor({ value, onChange, placeholder }) {
+  const [tab, setTab] = useState('write')
+  return (
+    <div className="rounded-lg border border-gray-200 dark:border-gray-600 overflow-hidden">
+      <div className="flex items-center gap-0 border-b border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-800/50 px-2 py-1.5">
+        {[['write', <Edit3 size={11}/>, 'Write'], ['preview', <Eye size={11}/>, 'Preview']].map(([t, ic, lbl]) => (
+          <button key={t} type="button" onClick={() => setTab(t)}
+            className={`flex items-center gap-1.5 text-xs px-2.5 py-1 rounded transition-colors ${tab === t ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'}`}>
+            {ic} {lbl}
+          </button>
+        ))}
+        <span className="ml-auto text-[10px] text-gray-400">Markdown</span>
+      </div>
+      {tab === 'write' ? (
+        <textarea value={value} onChange={e => onChange(e.target.value)} rows={4} placeholder={placeholder}
+          className={`${TEXTAREA_CLS} border-0 rounded-none focus:ring-0 min-h-[100px]`} />
+      ) : (
+        <div className="min-h-[100px] px-3 py-2 bg-white dark:bg-gray-900">
+          {value?.trim() ? (
+            <div className="prose prose-sm dark:prose-invert max-w-none text-sm">
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>{value}</ReactMarkdown>
+            </div>
+          ) : <p className="text-xs text-gray-400 italic mt-2">Nothing to preview yet.</p>}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function NotesDisplay({ notes }) {
+  if (!notes?.trim()) return null
+  return (
+    <div className="rounded-lg border border-amber-200 dark:border-amber-800/50 bg-amber-50 dark:bg-amber-900/10 px-3 py-2.5">
+      <div className="flex items-center gap-1.5 mb-1.5">
+        <FileText size={11} className="text-amber-500 shrink-0" />
+        <span className="text-[10px] font-semibold uppercase tracking-wide text-amber-600 dark:text-amber-400">AI Notes</span>
+      </div>
+      <div className="prose prose-sm dark:prose-invert max-w-none text-xs leading-relaxed [&_p]:mb-1 [&_ul]:mb-1">
+        <ReactMarkdown remarkPlugins={[remarkGfm]}>{notes}</ReactMarkdown>
+      </div>
+    </div>
+  )
+}
+
+// ── Script generator ──────────────────────────────────────────────────────────
+function generateSetupScript(publicKey, username, opts) {
+  const { disablePasswordAuth, disableRootLogin, passwordlessSudo } = opts
+  const lines = []
+  const a = (...l) => lines.push(...l)
+
+  a(
+    `#!/bin/bash`,
+    `# ═══════════════════════════════════════════════════════════`,
+    `#  AI Agent SSH User Setup`,
+    `#  Generated by AI Agent SSH Manager`,
+    `#  User: ${username}`,
+    `# ═══════════════════════════════════════════════════════════`,
+    `set -Eeo pipefail`,
+    `trap 'echo "[ERROR] Setup failed at line $LINENO — aborting" >&2; exit 1' ERR`,
+    ``,
+    `AI_USER="${username}"`,
+    `PUBLIC_KEY='${publicKey}'`,
+    ``,
+    `_ok()   { echo -e "\\033[0;32m✓\\033[0m $1"; }`,
+    `_info() { echo -e "\\033[0;34m›\\033[0m $1"; }`,
+    `_warn() { echo -e "\\033[0;33m⚠\\033[0m $1"; }`,
+    ``,
+    `[[ $EUID -ne 0 ]] && { echo "Run as root: sudo bash <this-script>"; exit 1; }`,
+    ``,
+    `echo ""; echo "═══════ AI Agent SSH Setup ═══════"; echo ""`,
+    ``,
+    `# ── Create user if missing ─────────────────────────────────────`,
+    `_info "Checking user '$AI_USER'..."`,
+    `if id "$AI_USER" &>/dev/null; then`,
+    `    _ok "User '$AI_USER' already exists"`,
+    `else`,
+    `    useradd -m -s /bin/bash "$AI_USER"`,
+    `    passwd -l "$AI_USER"   # lock password — key-only login`,
+    `    _ok "User '$AI_USER' created (password locked, key-only)"`,
+    `fi`,
+    ``,
+    `# ── SSH authorized key ─────────────────────────────────────────`,
+    `_info "Configuring SSH key..."`,
+    `SSH_DIR="/home/$AI_USER/.ssh"`,
+    `AUTH_KEYS="$SSH_DIR/authorized_keys"`,
+    `mkdir -p "$SSH_DIR"`,
+    `if grep -qF "$PUBLIC_KEY" "$AUTH_KEYS" 2>/dev/null; then`,
+    `    _ok "Public key already in authorized_keys"`,
+    `else`,
+    `    printf '%s\\n' "$PUBLIC_KEY" >> "$AUTH_KEYS"`,
+    `    _ok "Public key added to authorized_keys"`,
+    `fi`,
+    `chown -R "$AI_USER:$AI_USER" "$SSH_DIR"`,
+    `chmod 700 "$SSH_DIR"`,
+    `chmod 600 "$AUTH_KEYS"`,
+    `_ok "SSH directory permissions correct"`,
+    ``,
+  )
+
+  if (passwordlessSudo) {
+    a(
+      `# ── Sudo group + passwordless access ──────────────────────────`,
+      `_info "Configuring sudo access..."`,
+      `if getent group sudo &>/dev/null; then`,
+      `    usermod -aG sudo "$AI_USER" && _ok "Added to 'sudo' group"`,
+      `elif getent group wheel &>/dev/null; then`,
+      `    usermod -aG wheel "$AI_USER" && _ok "Added to 'wheel' group"`,
+      `else`,
+      `    _warn "Neither 'sudo' nor 'wheel' group found"`,
+      `fi`,
+      `SUDOERS_D="/etc/sudoers.d/${username}"`,
+      `{`,
+      `    printf '# AI Agent remote operator profile\\n'`,
+      `    printf '# Grants non-interactive sudo for diagnostics, log access, and service operations.\\n'`,
+      `    printf '# Effective scope: systemctl status/show/list-units/start/stop/restart/reload/enable/disable/daemon-reload; journalctl; dmesg; uptime/free/df/du/top/ps/pgrep/pidstat/iostat/vmstat/lsblk/mount/findmnt; ping/traceroute/tracepath/dig/nslookup/host/curl/wget/ss/ip/ethtool/nmcli/resolvectl; log readers under /var/log, /opt/*/logs, /srv/*/logs.\\n'`,
+      `    printf '%s ALL=(ALL) NOPASSWD:ALL\\n' "$AI_USER"`,
+      `} > "$SUDOERS_D"`,
+      `chmod 440 "$SUDOERS_D"`,
+      `if visudo -c -f "$SUDOERS_D" 2>/dev/null; then`,
+      `    _ok "Passwordless sudo configured (/etc/sudoers.d/${username})"`,
+      `else`,
+      `    _warn "sudoers syntax check failed — removing; sudo may still work via group"`,
+      `    rm -f "$SUDOERS_D"`,
+      `fi`,
+      ``,
+    )
+  }
+
+  if (disablePasswordAuth || disableRootLogin) {
+    a(
+      `# ── SSH daemon hardening ────────────────────────────────────`,
+      `_info "Applying SSH hardening..."`,
+      `SSHD_CONF="/etc/ssh/sshd_config"`,
+      ``,
+    )
+    if (disablePasswordAuth) a(
+      `sed -i 's/^#\\?\\s*PasswordAuthentication.*/PasswordAuthentication no/' "$SSHD_CONF"`,
+      `grep -q '^PasswordAuthentication' "$SSHD_CONF" || echo 'PasswordAuthentication no' >> "$SSHD_CONF"`,
+      `_ok "Password authentication disabled"`,
+      ``,
+    )
+    if (disableRootLogin) a(
+      `sed -i 's/^#\\?\\s*PermitRootLogin.*/PermitRootLogin no/' "$SSHD_CONF"`,
+      `grep -q '^PermitRootLogin' "$SSHD_CONF" || echo 'PermitRootLogin no' >> "$SSHD_CONF"`,
+      `_ok "Root SSH login disabled"`,
+      ``,
+    )
+  }
+
+  a(
+    `# ── Reload SSH safely ───────────────────────────────────────`,
+    `_info "Reloading SSH service..."`,
+    `if   systemctl is-active --quiet sshd 2>/dev/null; then systemctl reload sshd && _ok "sshd reloaded"`,
+    `elif systemctl is-active --quiet ssh  2>/dev/null; then systemctl reload ssh  && _ok "ssh reloaded"`,
+    `elif service sshd status &>/dev/null 2>&1;          then service sshd reload  && _ok "sshd reloaded"`,
+    `elif service ssh  status &>/dev/null 2>&1;          then service ssh  reload  && _ok "ssh reloaded"`,
+    `else _warn "Could not detect SSH service — reload SSH manually if needed"`,
+    `fi`,
+    ``,
+  )
+
+  if (passwordlessSudo) a(
+    `# ── Verify passwordless sudo ────────────────────────────────`,
+    `_info "Verifying sudo -n..."`,
+    `if su -s /bin/bash "$AI_USER" -c "sudo -n true" 2>/dev/null; then`,
+    `    _ok "sudo -n verified — AI Agent has passwordless sudo"`,
+    `else`,
+    `    _warn "Could not verify sudo -n from this context (normal in containers)"`,
+    `    _warn "It will work correctly when the AI connects via SSH"`,
+    `fi`,
+    ``,
+  )
+
+  a(
+    `# ── Summary ─────────────────────────────────────────────────`,
+    `echo ""`,
+    `echo "═══════════════════════════════════════════════"`,
+    `echo " Setup complete!"`,
+    `echo "═══════════════════════════════════════════════"`,
+    `echo " User:   $AI_USER"`,
+    `echo " Key:    ~/.ssh/authorized_keys"`,
+    passwordlessSudo ? `echo " Sudo:   passwordless enabled"` : null,
+    disablePasswordAuth ? `echo " SSH:    password auth disabled"` : null,
+    disableRootLogin ? `echo " SSH:    root login disabled"` : null,
+    `echo ""`,
+    `echo " Connect with:"`,
+    `echo "   ssh $AI_USER@$(hostname -I | awk '{print $1}')"`,
+    `echo ""`,
+  )
+
+  return lines.filter(l => l !== null).join('\n')
+}
+
+function generateOneLiner(script) {
+  try {
+    // Use btoa for base64 — script is ASCII-safe (we ensure no non-ASCII chars)
+    const b64 = btoa(script)
+    return `echo '${b64}' | base64 -d | sudo bash`
+  } catch {
+    return null
+  }
+}
+
+// ── AI Agent Setup Result panel ───────────────────────────────────────────────
+function AIAgentSetupPanel({ result, host, port, options, systems = [], onSystemsChanged, onDone }) {
+  const [testing, setTesting] = useState(false)
+  const [testResult, setTestResult] = useState(null)
+  const [showFullScript, setShowFullScript] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const existingSystem = systems.find(s => s.id === result.system_id) || findSystemForKey({
+    ...result,
+    host,
+    port,
+    username: result.username || 'aiagent',
+    ssh_key_path: result.ssh_key_path || result.private_key_path,
+  }, systems)
+  const initialSystemName = existingSystem?.name || result.system_name || host || ''
+  const initialNotes = existingSystem?.description || result.notes || ''
+  const [systemName, setSystemName] = useState(initialSystemName)
+  const [notes, setNotes] = useState(initialNotes)
+  const [lastSaved, setLastSaved] = useState({ systemName: initialSystemName, notes: initialNotes })
+  const [saved, setSaved] = useState(Boolean(result.system_saved || existingSystem))
+
+  const oneLiner = result.setup_command || result.destination_command || ''
+  const wgetOneLiner = result.setup_command_wget || ''
+  const script = result.setup_url || oneLiner
+  const setupUrlLooksLocal = /https?:\/\/(localhost|127\.0\.0\.1|\[::1\])/i.test(oneLiner)
+  const systemDirty = systemName !== lastSaved.systemName || notes !== lastSaved.notes
+
+  const checklist = [
+    { label: `Create user '${result.username || 'aiagent'}' (password locked)`, done: true },
+    { label: 'Install OpenSSH Ed25519 public key', done: true },
+    { label: 'Detect Debian/Ubuntu, Alpine, CentOS/RHEL, Arch and containers', done: true },
+    { label: 'Detect sudo/wheel group and configure passwordless sudo when available', done: true },
+    { label: 'Apply SSH hardening only after sshd_config validation', done: true },
+    { label: 'Reload SSH via systemctl, service, rc-service or init.d fallback', done: true },
+  ].filter(Boolean)
+
+  const handleTest = async () => {
+    if (!host) { toast.error('No host specified'); return }
+    setTesting(true); setTestResult(null)
+    try {
+      const res = await testSshConnection({
+        host, username: result.username || 'aiagent',
+        key_path: result.ssh_key_path || result.private_key_path,
+        port: parseInt(port) || 22,
+      })
+      setTestResult(res.success ? 'ok' : 'fail')
+      res.success ? toast.success(res.message) : toast.error(res.message)
+    } catch (e) {
+      setTestResult('fail')
+      toast.error(e.response?.data?.detail || e.message)
+    } finally {
+      setTesting(false) }
+  }
+
+  const handleSave = async () => {
+    setSaving(true)
+    try {
+      await saveSystem({
+        id: result.system_id || existingSystem?.id,
+        name: systemName || host,
+        host, port: parseInt(port) || 22,
+        username: result.username || 'aiagent',
+        ssh_key_path: result.ssh_key_path || result.private_key_path,
+        tags: existingSystem?.tags?.length ? existingSystem.tags : ['linux', 'ai-agent'],
+        description: notes || '',
+        parent_id: existingSystem?.parent_id || null,
+        order: existingSystem?.order || 0,
+      })
+      setSaved(true)
+      setLastSaved({ systemName, notes })
+      await onSystemsChanged?.()
+      toast.success(result.system_saved || existingSystem ? 'System updated in SSH Manager' : 'System saved to SSH Manager')
+    } catch (e) {
+      toast.error(e.response?.data?.detail || 'Save failed')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* ── Header ── */}
+      <div className="flex items-center gap-3 p-4 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800">
+        <div className="p-2 rounded-full bg-emerald-100 dark:bg-emerald-900/50">
+          <Key size={18} className="text-emerald-600 dark:text-emerald-400" />
+        </div>
+        <div>
+          <p className="font-semibold text-emerald-800 dark:text-emerald-300">SSH setup generated: <code className="font-mono">{result.key_name}</code></p>
+          <p className="text-xs text-emerald-600 dark:text-emerald-500">
+            {result.key_type || 'ssh-ed25519'} key saved in {result.private_key_format || 'openssh'} format. Copy one command and run it as root.
+          </p>
+        </div>
+      </div>
+
+      {/* ── What the script does ── */}
+      <div className="rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+        <div className="px-4 py-3 bg-gray-50 dark:bg-gray-700/50 border-b border-gray-200 dark:border-gray-700 flex items-center gap-2">
+          <ShieldCheck size={15} className="text-indigo-500" />
+          <span className="text-sm font-medium text-gray-700 dark:text-gray-200">What the script configures</span>
+        </div>
+        <div className="px-4 py-3 grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+          {checklist.map((item, i) => (
+            <div key={i} className="flex items-start gap-2 text-xs text-gray-600 dark:text-gray-300">
+              <CheckCircle2 size={13} className="text-emerald-500 shrink-0 mt-0.5" />
+              {item.label}
+            </div>
+          ))}
+        </div>
+        {options.passwordlessSudo && (
+          <div className="mx-4 mb-3 flex gap-2 p-2.5 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
+            <AlertTriangle size={13} className="text-amber-600 dark:text-amber-400 shrink-0 mt-px" />
+            <p className="text-xs text-amber-700 dark:text-amber-300 leading-relaxed">
+              <strong>sudo warning:</strong> This grants <code className="font-mono">{result.username || 'aiagent'}</code> passwordless <code>sudo</code> access (NOPASSWD:ALL). This is required for the AI to manage services, packages and system configs. Limit this to trusted hosts only.
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* ── One-liner ── */}
+      {oneLiner && (
+        <div>
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-xs font-medium text-gray-600 dark:text-gray-300 flex items-center gap-1.5">
+              <Zap size={13} className="text-indigo-500" />
+              One command
+            </span>
+            <CopyBtn text={oneLiner} label="Copy command" />
+          </div>
+          <div className="bg-gray-900 rounded-xl px-4 py-4 font-mono text-sm text-green-400 break-all select-all">
+            {oneLiner}
+          </div>
+          <p className="text-[10px] text-gray-400 mt-1">
+            Paste this on the target VM/CT as root, press Enter, then come back and test the connection.
+          </p>
+          {setupUrlLooksLocal && (
+            <p className="text-[10px] text-amber-600 dark:text-amber-400 mt-1">
+              This command points to localhost. For remote VMs, open the app through a reachable LAN/VPN URL or set PUBLIC_BASE_URL on the backend.
+            </p>
+          )}
+          {wgetOneLiner && (
+            <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-gray-400">
+              <span>wget fallback:</span>
+              <code className="font-mono text-gray-500 break-all">{wgetOneLiner}</code>
+              <CopyBtn text={wgetOneLiner} label="Copy wget" />
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Full script ── */}
+      <div>
+        <button
+          type="button"
+          onClick={() => setShowFullScript(s => !s)}
+          className="flex items-center gap-2 text-xs text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors mb-2">
+          {showFullScript ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+          <SquareCode size={13} />
+          {showFullScript ? 'Hide setup URL' : 'View setup URL'}
+        </button>
+        {showFullScript && (
+          <div className="bg-gray-900 rounded-xl overflow-hidden">
+            <div className="flex items-center justify-between px-4 py-2 border-b border-gray-700">
+              <span className="text-xs text-gray-400">setup script URL</span>
+              <CopyBtn text={script} label="Copy URL" />
+            </div>
+            <pre className="px-4 py-3 text-xs text-gray-300 overflow-x-auto leading-relaxed max-h-96 overflow-y-auto">
+              {script}
+            </pre>
+          </div>
+        )}
+      </div>
+
+      {/* ── Step 2: Test connection ── */}
+      <div className="rounded-xl border border-gray-200 dark:border-gray-700 p-4 space-y-3">
+        <div className="flex items-center gap-2">
+          <span className="flex items-center justify-center w-5 h-5 rounded-full bg-gray-200 dark:bg-gray-700 text-xs font-bold text-gray-600 dark:text-gray-300">2</span>
+          <span className="text-sm font-medium text-gray-700 dark:text-gray-200">Test connection</span>
+          {testResult === 'ok' && <CheckCircle2 size={15} className="text-emerald-500 ml-auto" />}
+          {testResult === 'fail' && <AlertTriangle size={15} className="text-red-500 ml-auto" />}
+        </div>
+        {host ? (
+          <button
+            type="button"
+            onClick={handleTest}
+            disabled={testing}
+            className={`flex items-center gap-2 px-3 py-1.5 text-xs rounded-lg border font-medium transition-colors disabled:opacity-50
+              ${testResult === 'ok'
+                ? 'border-emerald-300 dark:border-emerald-700 text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30'
+                : 'border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'}`}>
+            <Wifi size={13} className={testing ? 'animate-pulse' : ''} />
+            {testing ? 'Testing…' : testResult === 'ok' ? 'Connected ✓' : 'Test SSH connection'}
+          </button>
+        ) : (
+          <p className="text-xs text-gray-400">No host specified — enter a host to test the connection.</p>
+        )}
+        {testResult === 'fail' && (
+          <p className="text-xs text-amber-600 dark:text-amber-400">
+            Connection failed. Run the one-command setup as root, verify port/firewall, then try again.
+          </p>
+        )}
+      </div>
+
+      {/* ── Step 3: Save to manager ── */}
+      <div className="rounded-xl border border-gray-200 dark:border-gray-700 p-4 space-y-3">
+        <div className="flex items-center gap-2">
+          <span className="flex items-center justify-center w-5 h-5 rounded-full bg-gray-200 dark:bg-gray-700 text-xs font-bold text-gray-600 dark:text-gray-300">3</span>
+          <span className="text-sm font-medium text-gray-700 dark:text-gray-200">Save to SSH Manager</span>
+          {saved && <CheckCircle2 size={15} className="text-emerald-500 ml-auto" />}
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <div>
+            <label className="text-xs text-gray-400 mb-0.5 block">System name</label>
+            <input value={systemName} onChange={e => setSystemName(e.target.value)}
+              placeholder={host || 'my-server'} className={INPUT_CLS} />
+          </div>
+          <div className="text-xs text-gray-400 flex items-end pb-2">
+            <span className="font-mono">{(result.username || 'aiagent')}@{host || '—'}:{port || 22}</span>
+          </div>
+        </div>
+        <NotesEditor
+          value={notes}
+          onChange={setNotes}
+          placeholder={`# ${systemName || 'System notes'}\n- Environment: production\n- AI Agent dedicated user setup`}
+        />
+        {saved && !systemDirty ? (
+          <div className="flex items-center gap-2 text-xs text-emerald-600 dark:text-emerald-400">
+            <CheckCircle2 size={14} /> System saved - visible in SSH Manager and available to the AI agent.
+          </div>
+        ) : (
+          <button onClick={handleSave} disabled={saving}
+            className="flex items-center gap-2 px-3 py-1.5 text-xs rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-medium disabled:opacity-50 transition-colors">
+            <Server size={13} /> {saving ? 'Saving...' : saved ? 'Update system' : 'Save system'}
+          </button>
+        )}
+      </div>
+
+      <button onClick={onDone} className="w-full py-2 text-sm text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors">
+        Done
+      </button>
+    </div>
+  )
+}
+
+// ── New key / setup form ──────────────────────────────────────────────────────
+function NewKeyForm({ onSave, onCancel, onSystemsChanged, systems = [] }) {
+  const [mode, setMode] = useState('aiagent') // 'aiagent' | 'standard'
+  const [loading, setLoading] = useState(false)
+  const [result, setResult] = useState(null)
+
+  // AI Agent mode form
+  const [ai, setAi] = useState({
+    systemName: '', host: '', port: '22', username: 'aiagent', notes: '',
+    disablePasswordAuth: true, disableRootLogin: true, passwordlessSudo: true,
+  })
+  const setAiF = k => e => setAi(f => ({ ...f, [k]: e.target.value }))
+  const toggleAi = k => setAi(f => ({ ...f, [k]: !f[k] }))
+
+  // Standard mode form
+  const [std, setStd] = useState({
+    systemName: '', host: '', port: '22', username: '',
+    comment: 'ai-agent-key', destOs: 'linux', notes: '',
+  })
+  const setStdF = k => e => setStd(f => ({ ...f, [k]: e.target.value }))
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    setLoading(true)
+    try {
+      const form = mode === 'aiagent' ? {
+        comment: `aiagent-${ai.host || 'key'}`,
+        dest_os: 'linux',
+        host: ai.host || null,
+        port: parseInt(ai.port) || 22,
+        username: ai.username || 'aiagent',
+        system_name: ai.systemName || ai.host || null,
+        notes: ai.notes || null,
+      } : {
+        comment: std.comment,
+        dest_os: std.destOs,
+        host: std.host || null,
+        port: parseInt(std.port) || 22,
+        username: std.username || null,
+        system_name: std.systemName || null,
+        notes: std.notes || null,
+      }
+      const res = await onSave(form)
+      setResult({
+        ...res,
+        host: form.host,
+        port: form.port,
+        notes: form.notes,
+        system_name: form.system_name,
+        username: form.username,
+      })
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Failed to create key')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Show result panel
+  if (result) {
+    if (mode === 'aiagent') {
+      return (
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 mb-4">
+          <AIAgentSetupPanel
+            result={result}
+            host={ai.host}
+            port={ai.port}
+            options={{
+              disablePasswordAuth: ai.disablePasswordAuth,
+              disableRootLogin: ai.disableRootLogin,
+              passwordlessSudo: ai.passwordlessSudo,
+            }}
+            systems={systems}
+            onSystemsChanged={onSystemsChanged}
+            onDone={() => { onCancel(); onSystemsChanged?.() }}
+          />
+        </div>
+      )
+    }
+    // Standard mode result
+    return (
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 mb-4">
+        <h3 className="font-semibold text-green-600 dark:text-green-400 mb-3">Key created: {result.key_name}</h3>
+        <div className="space-y-3">
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-xs font-medium text-gray-500">Public Key</span>
+              <CopyBtn text={result.public_key} />
+            </div>
+            <code className="block text-xs bg-gray-50 dark:bg-gray-900 rounded-lg p-2 break-all">{result.public_key}</code>
+          </div>
+          <div className="bg-gray-900 rounded-xl p-4">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-medium text-green-400">Command to run on destination</span>
+              <CopyBtn text={result.destination_command} />
+            </div>
+            <code className="block text-xs text-gray-300 whitespace-pre-wrap break-all">{result.destination_command}</code>
+          </div>
+          <p className="text-xs text-gray-400">Private key: <code>{result.private_key_path}</code></p>
+        </div>
+        <button onClick={() => { onCancel(); onSystemsChanged?.() }} className="mt-4 text-sm text-indigo-500 hover:underline">Done</button>
+      </div>
+    )
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 mb-4 overflow-hidden">
+
+      {/* ── Mode switcher ── */}
+      <div className="grid grid-cols-2 border-b border-gray-200 dark:border-gray-700">
+        <button type="button" onClick={() => setMode('aiagent')}
+          className={`flex items-center justify-center gap-2 py-3.5 text-sm font-medium transition-colors
+            ${mode === 'aiagent'
+              ? 'bg-indigo-600 text-white'
+              : 'bg-gray-50 dark:bg-gray-700/50 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'}`}>
+          <Bot size={15} />
+          AI Agent Setup
+          {mode === 'aiagent' && (
+            <span className="text-[10px] px-1.5 py-0.5 rounded bg-white/20 font-semibold">recommended</span>
+          )}
+        </button>
+        <button type="button" onClick={() => setMode('standard')}
+          className={`flex items-center justify-center gap-2 py-3.5 text-sm font-medium transition-colors
+            ${mode === 'standard'
+              ? 'bg-indigo-600 text-white'
+              : 'bg-gray-50 dark:bg-gray-700/50 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'}`}>
+          <Settings2 size={15} />
+          Use existing user
+        </button>
+      </div>
+
+      <div className="p-5 space-y-4">
+        {/* ── AI Agent mode ── */}
+        {mode === 'aiagent' && (
+          <>
+            {/* Explainer */}
+            <div className="flex gap-3 p-3 rounded-xl bg-indigo-50 dark:bg-indigo-950/30 border border-indigo-200 dark:border-indigo-800">
+              <Info size={15} className="text-indigo-500 shrink-0 mt-0.5" />
+              <div className="text-xs text-indigo-700 dark:text-indigo-300 leading-relaxed">
+                Creates a dedicated <code className="font-mono font-semibold">aiagent</code> user on the target machine.
+                Enter host/IP, generate the setup, copy one command, run it as root, then test the connection.
+              </div>
+            </div>
+
+            {/* System fields */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs text-gray-500 mb-1 block">System name</label>
+                <input value={ai.systemName} onChange={setAiF('systemName')} placeholder="pve-node-01" className={INPUT_CLS} />
+              </div>
+              <div>
+                <label className="text-xs text-gray-500 mb-1 block">Username</label>
+                <input value={ai.username} onChange={setAiF('username')} className={INPUT_CLS} placeholder="aiagent" />
+              </div>
+              <div>
+                <label className="text-xs text-gray-500 mb-1 block">Host / IP</label>
+                <input value={ai.host} onChange={setAiF('host')} placeholder="192.168.1.10" className={INPUT_CLS} />
+              </div>
+              <div>
+                <label className="text-xs text-gray-500 mb-1 block">SSH Port</label>
+                <input value={ai.port} onChange={setAiF('port')} type="number" className={INPUT_CLS} />
+              </div>
+            </div>
+
+            {/* Options */}
+            <div className="space-y-2">
+              <p className="text-xs font-medium text-gray-600 dark:text-gray-300 flex items-center gap-1.5">
+                <Shield size={13} className="text-indigo-500" /> Security options
+              </p>
+              {[
+                ['passwordlessSudo', 'Passwordless sudo (NOPASSWD:ALL)', 'Required for the AI to manage services and packages', true],
+                ['disablePasswordAuth', 'Disable SSH password authentication', 'Key-only login — more secure', false],
+                ['disableRootLogin', 'Disable root SSH login', 'Forces use of the dedicated user', false],
+              ].map(([key, label, desc, required]) => (
+                <label key={key}
+                  className={`flex items-start gap-3 p-2.5 rounded-lg cursor-pointer border transition-colors
+                    ${ai[key]
+                      ? 'border-indigo-200 dark:border-indigo-800 bg-indigo-50/50 dark:bg-indigo-950/20'
+                      : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'}`}>
+                  <input type="checkbox" checked={!!ai[key]} onChange={() => toggleAi(key)}
+                    disabled={required} className="mt-0.5 accent-indigo-600" />
+                  <div>
+                    <span className="text-xs font-medium text-gray-700 dark:text-gray-200">{label}</span>
+                    {required && <span className="ml-1.5 text-[10px] text-indigo-500 font-medium">required</span>}
+                    <p className="text-[11px] text-gray-400 mt-0.5">{desc}</p>
+                  </div>
+                </label>
+              ))}
+            </div>
+          </>
+        )}
+
+        {/* ── Standard mode ── */}
+        {mode === 'standard' && (
+          <>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs text-gray-500 mb-1 block">System Name</label>
+                <input value={std.systemName} onChange={setStdF('systemName')} placeholder="pve-container" className={INPUT_CLS} />
+              </div>
+              <div>
+                <label className="text-xs text-gray-500 mb-1 block">Destination OS</label>
+                <select value={std.destOs} onChange={setStdF('destOs')} className={INPUT_CLS}>
+                  {OS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="text-xs text-gray-500 mb-1 block">Host / IP</label>
+                <input value={std.host} onChange={setStdF('host')} placeholder="192.168.1.10" className={INPUT_CLS} />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-xs text-gray-500 mb-1 block">Port</label>
+                  <input value={std.port} onChange={setStdF('port')} type="number" className={INPUT_CLS} />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500 mb-1 block">Username</label>
+                  <input value={std.username} onChange={setStdF('username')} placeholder="root" className={INPUT_CLS} />
+                </div>
+              </div>
+            </div>
+            <div>
+              <label className="text-xs text-gray-500 mb-1 block">Key Comment</label>
+              <input value={std.comment} onChange={setStdF('comment')} className={INPUT_CLS} />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 mb-1.5">
+                <FileText size={13} className="text-amber-500" />
+                <label className="text-xs font-medium text-gray-700 dark:text-gray-300">AI Notes</label>
+                <span className="text-[10px] text-gray-400">· optional · Markdown</span>
+              </div>
+              <NotesEditor
+                value={std.notes}
+                onChange={val => setStd(f => ({ ...f, notes: val }))}
+                placeholder={`# ${std.systemName || 'System notes'}\n\n- Environment: production\n- Check disk first`}
+              />
+            </div>
+          </>
+        )}
+
+        {/* ── Actions ── */}
+        <div className="flex gap-2 pt-1">
+          <button type="submit" disabled={loading}
+            className="flex-1 flex items-center justify-center gap-2 py-2.5 text-sm rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-medium disabled:opacity-50 transition-colors">
+            <Key size={15} />
+            {loading
+              ? 'Generating key…'
+              : mode === 'aiagent'
+                ? 'Generate AI Agent Setup'
+                : 'Create SSH key'}
+          </button>
+          <button type="button" onClick={onCancel}
+            className="px-4 py-2.5 text-sm rounded-lg border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+            Cancel
+          </button>
+        </div>
+      </div>
+    </form>
+  )
+}
+
+// ── Tree / hierarchy (unchanged logic) ───────────────────────────────────────
+function sortedSystems(systems) {
+  return [...systems].sort((a, b) =>
+    (a.parent_id || '').localeCompare(b.parent_id || '') ||
+    (a.order ?? 0) - (b.order ?? 0) || a.name.localeCompare(b.name)
+  )
+}
+function buildTree(systems) {
+  const byId = new Map(systems.map(s => [s.id, { ...s, children: [] }]))
+  const roots = []
+  sortedSystems(systems).forEach(system => {
+    const node = byId.get(system.id)
+    const parent = system.parent_id ? byId.get(system.parent_id) : null
+    if (parent && parent.id !== node.id) parent.children.push(node)
+    else roots.push(node)
+  })
+  return roots
+}
+function isDescendant(systems, childId, ancestorId) {
+  if (!childId || !ancestorId) return false
+  const byId = new Map(systems.map(s => [s.id, s]))
+  let current = byId.get(childId)
+  const seen = new Set()
+  while (current?.parent_id) {
+    if (current.parent_id === ancestorId) return true
+    if (seen.has(current.parent_id)) return false
+    seen.add(current.parent_id)
+    current = byId.get(current.parent_id)
+  }
+  return false
+}
+function moveSystem(systems, draggedId, targetId, mode) {
+  if (!draggedId || draggedId === targetId) return null
+  const target = targetId ? systems.find(s => s.id === targetId) : null
+  const newParentId = mode === 'inside' ? targetId : mode === 'root' ? null : target?.parent_id || null
+  if (newParentId === draggedId || isDescendant(systems, newParentId, draggedId)) return null
+  const parentKey = (pid) => pid || ROOT_PARENT
+  const groups = new Map()
+  sortedSystems(systems).forEach(system => {
+    if (system.id === draggedId) return
+    const key = parentKey(system.parent_id)
+    groups.set(key, [...(groups.get(key) || []), system.id])
+  })
+  const groupKey = parentKey(newParentId)
+  const siblings = [...(groups.get(groupKey) || [])]
+  let insertAt = siblings.length
+  if ((mode === 'before' || mode === 'after') && target) {
+    const targetIndex = siblings.indexOf(target.id)
+    insertAt = targetIndex === -1 ? siblings.length : targetIndex + (mode === 'after' ? 1 : 0)
+  }
+  siblings.splice(insertAt, 0, draggedId)
+  groups.set(groupKey, siblings)
+  const orderById = {}
+  groups.forEach(ids => ids.forEach((id, index) => { orderById[id] = index }))
+  return systems.map(system => ({
+    ...system,
+    parent_id: system.id === draggedId ? newParentId : system.parent_id,
+    order: orderById[system.id] ?? system.order ?? 0,
+  }))
+}
+function dropModeFromEvent(event) {
+  const rect = event.currentTarget.getBoundingClientRect()
+  const y = event.clientY - rect.top
+  if (y < rect.height * 0.25) return 'before'
+  if (y > rect.height * 0.75) return 'after'
+  return 'inside'
+}
+
+function SystemTreeNode({ node, depth, draggingId, dropTarget, onDragStart, onDragEnd, onDragOverNode, onDropNode }) {
+  const isDropTarget = dropTarget?.id === node.id
+  const dropMode = isDropTarget ? dropTarget.mode : null
+  const hasNotes = !!node.description?.trim()
+  return (
+    <div>
+      <div
+        draggable
+        onDragStart={(event) => { event.dataTransfer.effectAllowed = 'move'; onDragStart(node.id) }}
+        onDragEnd={onDragEnd}
+        onDragOver={(event) => { event.preventDefault(); onDragOverNode(node.id, dropModeFromEvent(event)) }}
+        onDrop={(event) => { event.preventDefault(); onDropNode(node.id, dropModeFromEvent(event)) }}
+        className={[
+          'group relative flex items-center gap-3 rounded-lg px-3 py-2 transition-colors border border-transparent',
+          draggingId === node.id ? 'opacity-40' : 'opacity-100',
+          dropMode === 'inside' ? 'bg-indigo-50 dark:bg-indigo-950/30 border-indigo-200 dark:border-indigo-800' : 'hover:bg-gray-50 dark:hover:bg-gray-700',
+          dropMode === 'before' ? 'border-t-indigo-500 border-t-2' : '',
+          dropMode === 'after' ? 'border-b-indigo-500 border-b-2' : '',
+        ].join(' ')}
+        style={{ marginLeft: depth * 24 }}>
+        <GripVertical size={15} className="text-gray-300 group-hover:text-gray-500 shrink-0 cursor-grab" />
+        {depth > 0 && <CornerDownRight size={14} className="text-gray-300 shrink-0" />}
+        <Server size={16} className="text-indigo-500 shrink-0" />
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{node.name}</p>
+          <p className="text-xs text-gray-400 truncate">{node.username}@{node.host}:{node.port || 22}</p>
+        </div>
+        {hasNotes && <span title="Has AI notes" className="text-amber-400 shrink-0"><FileText size={13} /></span>}
+        {node.tags?.length > 0 && (
+          <div className="hidden sm:flex gap-1">
+            {node.tags.slice(0, 2).map(tag => (
+              <span key={tag} className="rounded bg-gray-100 dark:bg-gray-700 px-2 py-0.5 text-[10px] text-gray-500 dark:text-gray-300">{tag}</span>
+            ))}
+          </div>
+        )}
+      </div>
+      {node.children.map(child => (
+        <SystemTreeNode key={child.id} node={child} depth={depth + 1}
+          draggingId={draggingId} dropTarget={dropTarget}
+          onDragStart={onDragStart} onDragEnd={onDragEnd}
+          onDragOverNode={onDragOverNode} onDropNode={onDropNode} />
+      ))}
+    </div>
+  )
+}
+
+function HostHierarchy({ systems, onMove }) {
+  const tree = useMemo(() => buildTree(systems), [systems])
+  const [draggingId, setDraggingId] = useState(null)
+  const [dropTarget, setDropTarget] = useState(null)
+  const handleMove = (targetId, mode) => {
+    if (!draggingId) return
+    onMove(draggingId, targetId, mode)
+    setDraggingId(null); setDropTarget(null)
+  }
+  return (
+    <section className="mb-6 rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800 overflow-hidden">
+      <div className="flex items-center justify-between gap-3 border-b border-gray-100 px-4 py-3 dark:border-gray-700">
+        <div className="flex items-center gap-2 min-w-0">
+          <Network size={16} className="text-indigo-500 shrink-0" />
+          <div className="min-w-0">
+            <h2 className="text-sm font-semibold text-gray-900 dark:text-white">Host hierarchy</h2>
+            <p className="text-xs text-gray-400">{systems.length} registered hosts</p>
+          </div>
+        </div>
+        <div
+          onDragOver={(event) => { event.preventDefault(); setDropTarget({ id: null, mode: 'root' }) }}
+          onDragLeave={() => setDropTarget(null)}
+          onDrop={(event) => { event.preventDefault(); handleMove(null, 'root') }}
+          className={['rounded-lg border px-3 py-1.5 text-xs transition-colors',
+            dropTarget?.mode === 'root'
+              ? 'border-indigo-300 bg-indigo-50 text-indigo-700 dark:border-indigo-800 dark:bg-indigo-950/30 dark:text-indigo-300'
+              : 'border-gray-200 text-gray-500 dark:border-gray-700 dark:text-gray-400',
+          ].join(' ')}
+          title="Drop here to move a host to the top level">
+          Top level
+        </div>
+      </div>
+      <div className="p-3">
+        {systems.length === 0 ? (
+          <p className="text-sm text-gray-400 text-center py-8">No registered hosts yet.</p>
+        ) : tree.map(node => (
+          <SystemTreeNode key={node.id} node={node} depth={0}
+            draggingId={draggingId} dropTarget={dropTarget}
+            onDragStart={setDraggingId}
+            onDragEnd={() => { setDraggingId(null); setDropTarget(null) }}
+            onDragOverNode={(id, mode) => setDropTarget({ id, mode })}
+            onDropNode={handleMove} />
+        ))}
+      </div>
+    </section>
+  )
+}
+
+function findSystemForKey(key, systems) {
+  const keyPort = parseInt(key.port) || 22
+  return systems.find(system =>
+    (key.ssh_key_path && system.ssh_key_path === key.ssh_key_path) ||
+    (key.system_name && system.name === key.system_name) ||
+    (key.host && key.username && system.host === key.host && system.username === key.username && (parseInt(system.port) || 22) === keyPort)
+  )
+}
+
+// ── Key card (unchanged) ──────────────────────────────────────────────────────
+function KeyCard({ k, system, onDelete, onSystemsChanged }) {
+  const [open, setOpen] = useState(false)
+  const [editing, setEditing] = useState(false)
+  const [testing, setTesting] = useState(false)
+  const [testResult, setTestResult] = useState(null)
+  const [saving, setSaving] = useState(false)
+  const [form, setForm] = useState({
+    host: system?.host || k.host || '',
+    port: system?.port || k.port || 22,
+    username: system?.username || k.username || '',
+    system_name: system?.name || k.system_name || '',
+    notes: system?.description || '',
+  })
+  useEffect(() => {
+    setForm({
+      host: system?.host || k.host || '',
+      port: system?.port || k.port || 22,
+      username: system?.username || k.username || '',
+      system_name: system?.name || k.system_name || '',
+      notes: system?.description || '',
+    })
+  }, [k, system])
+
+  const osLabel = OS_OPTIONS.find(o => o.value === k.dest_os)?.label ?? k.dest_os
+  const set = (field) => (e) => setForm(f => ({ ...f, [field]: e.target.value }))
+  const setNotes = (val) => setForm(f => ({ ...f, notes: val }))
+  const hasNotes = !!form.notes?.trim()
+
+  const handleTest = async (e) => {
+    e.stopPropagation()
+    if (!form.host || !form.username) { toast.error('Host and username required'); return }
+    setTesting(true); setTestResult(null)
+    try {
+      const res = await testSshConnection({ host: form.host, username: form.username, key_path: k.ssh_key_path, port: parseInt(form.port) || 22 })
+      if (res.success) { setTestResult('ok'); toast.success(res.message) }
+      else { setTestResult('fail'); toast.error(res.message) }
+    } catch (err) {
+      setTestResult('fail'); toast.error(err.response?.data?.detail || err.message)
+    } finally { setTesting(false) }
+  }
+
+  const handleSave = async (e) => {
+    e.stopPropagation(); setSaving(true)
+    try {
+      await saveSystem({ id: system?.id, name: form.system_name || form.host, host: form.host, port: parseInt(form.port) || 22, username: form.username, ssh_key_path: k.ssh_key_path, tags: system?.tags?.length ? system.tags : [k.dest_os], description: form.notes || '', parent_id: system?.parent_id || null, order: system?.order || 0 })
+      toast.success('System saved'); setEditing(false); onSystemsChanged?.()
+    } catch (err) { toast.error(err.response?.data?.detail || 'Save failed') }
+    finally { setSaving(false) }
+  }
+
+  const wifiColor = testResult === 'ok' ? 'text-green-500' : testResult === 'fail' ? 'text-red-500' : 'text-gray-400 hover:text-green-500'
+
+  return (
+    <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+      <div className="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700" onClick={() => setOpen(o => !o)}>
+        <Key size={16} className="text-indigo-500 shrink-0" />
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium text-gray-900 dark:text-white">{k.key_name}</p>
+          <p className="text-xs text-gray-400 truncate">
+            {osLabel}{form.username && form.host ? ` · ${form.username}@${form.host}:${form.port || 22}` : ' · no host configured'}{form.system_name ? ` · ${form.system_name}` : ''}
+          </p>
+        </div>
+        {hasNotes && <span title="Has AI notes" className="text-amber-400 shrink-0"><FileText size={13} /></span>}
+        <button onClick={handleTest} disabled={testing} title="Test SSH connection"
+          className={`p-1.5 transition-colors disabled:opacity-40 ${wifiColor}`}>
+          <Wifi size={15} className={testing ? 'animate-pulse' : ''} />
+        </button>
+        <button onClick={e => { e.stopPropagation(); setEditing(v => !v); setOpen(true) }} title="Edit system info"
+          className={`p-1.5 transition-colors ${editing ? 'text-indigo-500' : 'text-gray-400 hover:text-indigo-500'}`}>
+          <Pencil size={14} />
+        </button>
+        <button onClick={e => { e.stopPropagation(); onDelete(k.key_id) }}
+          className="p-1.5 text-gray-400 hover:text-red-500 transition-colors"><Trash2 size={14} /></button>
+        {open ? <ChevronUp size={14} className="text-gray-400" /> : <ChevronDown size={14} className="text-gray-400" />}
+      </div>
+      {open && (
+        <div className="px-4 pb-4 border-t border-gray-100 dark:border-gray-700 pt-3 space-y-4">
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <Server size={13} className="text-gray-400" />
+              <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">System</span>
+            </div>
+            {editing ? (
+              <div className="space-y-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <div><label className="text-xs text-gray-400 mb-0.5 block">System Name</label><input value={form.system_name} onChange={set('system_name')} className={INPUT_CLS} placeholder="pve-node" /></div>
+                  <div><label className="text-xs text-gray-400 mb-0.5 block">Host / IP</label><input value={form.host} onChange={set('host')} className={INPUT_CLS} placeholder="192.168.1.10" /></div>
+                  <div><label className="text-xs text-gray-400 mb-0.5 block">Port</label><input value={form.port} onChange={set('port')} type="number" className={INPUT_CLS} /></div>
+                  <div><label className="text-xs text-gray-400 mb-0.5 block">Username</label><input value={form.username} onChange={set('username')} className={INPUT_CLS} placeholder="root" /></div>
+                </div>
+                <div>
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <FileText size={13} className="text-amber-500" />
+                    <label className="text-xs font-medium text-gray-700 dark:text-gray-300">AI Notes</label>
+                    <span className="text-[10px] text-gray-400">· visible to AI agent · Markdown</span>
+                  </div>
+                  <NotesEditor value={form.notes} onChange={setNotes}
+                    placeholder={`# ${form.system_name || 'System notes'}\n\n- Environment: production`} />
+                </div>
+                <div className="flex gap-2 pt-1">
+                  <button onClick={handleSave} disabled={saving}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-medium disabled:opacity-50">
+                    <Check size={12} /> {saving ? 'Saving…' : 'Save'}
+                  </button>
+                  <button onClick={() => setEditing(false)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700">
+                    <X size={12} /> Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+                  <span className="text-gray-400">Name</span><span className="text-gray-700 dark:text-gray-300">{form.system_name || <em className="text-gray-400">—</em>}</span>
+                  <span className="text-gray-400">Host</span><span className="text-gray-700 dark:text-gray-300">{form.host || <em className="text-gray-400">—</em>}</span>
+                  <span className="text-gray-400">Port</span><span className="text-gray-700 dark:text-gray-300">{form.port}</span>
+                  <span className="text-gray-400">Username</span><span className="text-gray-700 dark:text-gray-300">{form.username || <em className="text-gray-400">—</em>}</span>
+                  <span className="text-gray-400">Key file</span><span className="text-gray-700 dark:text-gray-300 break-all font-mono text-[11px]">{k.ssh_key_path}</span>
+                </div>
+                {hasNotes && <NotesDisplay notes={form.notes} />}
+              </div>
+            )}
+          </div>
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-xs font-medium text-gray-500">Public Key</span>
+              <CopyBtn text={k.public_key} />
+            </div>
+            <code className="block text-xs bg-gray-50 dark:bg-gray-900 rounded-lg p-2 text-gray-600 dark:text-gray-400 break-all leading-relaxed">{k.public_key}</code>
+          </div>
+          <div className="bg-gray-900 rounded-xl p-3">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-medium text-green-400">Command to authorize on destination</span>
+              <CopyBtn text={k.destination_command || ''} />
+            </div>
+            <pre className="text-xs text-gray-300 whitespace-pre-wrap break-all font-mono">
+              {k.destination_command || <span className="text-gray-500 italic">Not available</span>}
+            </pre>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Page ──────────────────────────────────────────────────────────────────────
+export default function SshManager() {
+  const [keys, setKeys] = useState([])
+  const [systems, setSystems] = useState([])
+  const [showForm, setShowForm] = useState(false)
+
+  const loadKeys    = () => getSshKeys().then(setKeys).catch(() => {})
+  const loadSystems = () => getSystems().then(setSystems).catch(() => {})
+  const loadAll     = () => Promise.all([loadKeys(), loadSystems()])
+
+  useEffect(() => { loadAll() }, [])
+
+  const handleCreateKey = async (data) => {
+    const res = await createSshKey(data)
+    await loadAll()
+    return res
+  }
+
+  const handleDeleteKey = async (id) => {
+    if (!confirm('Delete this key? The private key file will be removed.')) return
+    const result = await deleteSshKey(id)
+    const deletedHosts = result.deleted_systems?.length || 0
+    toast.success(deletedHosts ? `Key and ${deletedHosts} host${deletedHosts === 1 ? '' : 's'} deleted` : 'Key deleted')
+    await loadAll()
+  }
+
+  const handleMoveSystem = async (draggedId, targetId, mode) => {
+    const nextSystems = moveSystem(systems, draggedId, targetId, mode)
+    if (!nextSystems) { toast.error('Invalid hierarchy move'); return }
+    const previousSystems = systems
+    setSystems(nextSystems)
+    try {
+      await reorderSystems(nextSystems.map(s => ({ id: s.id, parent_id: s.parent_id || null, order: s.order || 0 })))
+      await loadSystems()
+      toast.success('Hierarchy saved')
+    } catch (err) {
+      setSystems(previousSystems)
+      toast.error(err.response?.data?.detail || 'Unable to save hierarchy')
+    }
+  }
+
+  return (
+    <div className="p-6 max-w-5xl mx-auto">
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">SSH Manager</h1>
+          <p className="text-sm text-gray-500 dark:text-gray-400">Keys, registered hosts and AI agent setup</p>
+        </div>
+        <button
+          onClick={() => setShowForm(s => !s)}
+          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium transition-colors">
+          <Plus size={16} />
+          {showForm ? 'Close' : 'Add host'}
+        </button>
+      </div>
+
+      {showForm && (
+        <NewKeyForm
+          onSave={handleCreateKey}
+          onCancel={() => { setShowForm(false); loadAll() }}
+          onSystemsChanged={loadSystems}
+          systems={systems}
+        />
+      )}
+
+      <HostHierarchy systems={systems} onMove={handleMoveSystem} />
+
+      <div className="mb-3 flex items-center justify-between">
+        <h2 className="text-sm font-semibold text-gray-900 dark:text-white">SSH keys</h2>
+        <span className="text-xs text-gray-400">{keys.length} keys</span>
+      </div>
+      <div className="space-y-3">
+        {keys.length === 0 ? (
+          <p className="text-sm text-gray-400 text-center py-12">No SSH keys yet. Add a host with the button above.</p>
+        ) : keys.map(k => (
+          <KeyCard
+            key={k.key_id} k={k}
+            system={findSystemForKey(k, systems)}
+            onDelete={handleDeleteKey}
+            onSystemsChanged={loadSystems}
+          />
+        ))}
+      </div>
+    </div>
+  )
+}
