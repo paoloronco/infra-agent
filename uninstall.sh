@@ -12,6 +12,8 @@ AUTO_YES="no"
 
 APP_PACKAGES=(nodejs nginx)
 MANIFEST_FILE=""
+PACKAGE_MANAGER_FILE=""
+PACKAGE_MANAGER=""
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -69,7 +71,11 @@ if ! confirm "Uninstall AI Agent and remove all app data"; then
 fi
 
 MANIFEST_FILE="$INSTALL_DIR/.ai-agent-installed-packages"
+PACKAGE_MANAGER_FILE="$INSTALL_DIR/.ai-agent-package-manager"
 PURGE_PACKAGES=()
+if [[ -f "$PACKAGE_MANAGER_FILE" ]]; then
+    PACKAGE_MANAGER="$(cat "$PACKAGE_MANAGER_FILE")"
+fi
 
 if [[ "$PURGE_DEPS" == "no" && "$AUTO_YES" == "no" ]]; then
     if confirm "Also purge packages installed specifically for AI Agent"; then
@@ -109,6 +115,7 @@ fi
 echo "Removing Nginx config..."
 rm -f /etc/nginx/sites-enabled/ai-agent
 rm -f /etc/nginx/sites-available/ai-agent
+rm -f /etc/nginx/conf.d/ai-agent.conf
 reload_nginx_if_running
 
 echo "Removing project files and runtime data..."
@@ -124,7 +131,7 @@ if [[ "$PURGE_DEPS" == "yes" ]]; then
     safe_packages=()
     for package in "${PURGE_PACKAGES[@]}"; do
         case "$package" in
-            curl|ca-certificates|gnupg|git|iproute2|python3)
+            base-devel|build-essential|ca-certificates|curl|gcc|gcc-c++|git|iproute|iproute2|libffi-dev|libffi-devel|libssl-dev|make|openssl-devel|procps|procps-ng|python|python-pip|python3|python3-dev|python3-devel|python3-pip|python3-venv|shadow-utils|tar|xz|xz-utils)
                 echo "Keeping system package: $package"
                 ;;
             *)
@@ -134,12 +141,28 @@ if [[ "$PURGE_DEPS" == "yes" ]]; then
     done
 
     if [[ ${#safe_packages[@]} -gt 0 ]]; then
-        apt-get remove --purge -y "${safe_packages[@]}" || true
+        case "$PACKAGE_MANAGER" in
+            apt|"")
+                apt-get remove --purge -y "${safe_packages[@]}" || true
+                ;;
+            dnf)
+                dnf remove -y "${safe_packages[@]}" || true
+                ;;
+            yum)
+                yum remove -y "${safe_packages[@]}" || true
+                ;;
+            pacman)
+                pacman -Rns --noconfirm "${safe_packages[@]}" || true
+                ;;
+            *)
+                echo "Unknown package manager '$PACKAGE_MANAGER'; keeping packages."
+                ;;
+        esac
     fi
-    rm -f /etc/apt/sources.list.d/nodesource.list
-    rm -f /etc/apt/keyrings/nodesource.gpg /usr/share/keyrings/nodesource.gpg
-    apt-get autoremove --purge -y || true
-    apt-get autoclean -y || true
+    if [[ "$PACKAGE_MANAGER" == "apt" || -z "$PACKAGE_MANAGER" ]]; then
+        apt-get autoremove --purge -y || true
+        apt-get autoclean -y || true
+    fi
 fi
 
 echo "Uninstallation complete."

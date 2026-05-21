@@ -10,6 +10,14 @@ EnvironmentFile=/opt/ai-agent/backend/.env
 ExecStart=/opt/ai-agent/backend/venv/bin/python main.py
 Restart=always
 RestartSec=5
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/ai-agent/backend/data
+LockPersonality=true
+RestrictSUIDSGID=true
 
 [Install]
 WantedBy=multi-user.target

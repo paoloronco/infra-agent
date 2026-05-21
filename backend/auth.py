@@ -44,6 +44,10 @@ def _get_secret_key() -> str:
     else:
         _SECRET_KEY = secrets.token_hex(32)
         key_file.write_text(_SECRET_KEY)
+        try:
+            os.chmod(key_file, 0o600)
+        except Exception:
+            pass
     return _SECRET_KEY
 
 def _get_session_timeout_hours() -> int:
@@ -106,6 +110,11 @@ class UserResponse(BaseModel):
     is_locked: bool
 
 # Auth state management (DB-backed)
+def _auth_enabled_by_default() -> bool:
+    """Read first-boot auth default from env; persisted DB state wins afterwards."""
+    return os.getenv("AUTH_ENABLED_BY_DEFAULT", "false").strip().lower() in {"1", "true", "yes", "on"}
+
+
 def get_auth_enabled() -> bool:
     """Load auth_enabled state from database."""
     from db import SessionLocal
@@ -114,8 +123,7 @@ def get_auth_enabled() -> bool:
     try:
         setting = db.query(AuthSetting).filter(AuthSetting.id == 1).first()
         if not setting:
-            # Create default disabled
-            setting = AuthSetting(id=1, enabled=False)
+            setting = AuthSetting(id=1, enabled=_auth_enabled_by_default())
             db.add(setting)
             db.commit()
         return setting.enabled

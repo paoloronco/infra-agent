@@ -33,6 +33,7 @@ class Settings(BaseSettings):
     database_url: str = ""
 
     # Security
+    auth_enabled_by_default: bool = False
     enable_command_validation: bool = True
     strict_ssh_host_key_checking: bool = False
     dangerous_commands_blacklist: list = [

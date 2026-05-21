@@ -29,13 +29,36 @@ before they are executed.
 
 ### Production Install
 
-Tested on Ubuntu/Debian.
+Native Linux install:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/paoloronco/infra-agent/master/install.sh | sudo bash
 ```
 
-The one-line installer uses defaults automatically: `/opt/ai-agent`, Nginx on port `80`, and the first free backend port starting from `8000`. On systems without running systemd, it starts the backend as a background process and writes logs to `/var/log/ai-agent/backend.log`.
+The one-line installer uses defaults automatically: `/opt/ai-agent`, Nginx on port `80`, and the first free backend port starting from `8000`. It builds into a staging directory, preserves `backend/data` and `.env` on reinstall, health-checks the backend before it reports success, and restores the previous install tree if cutover fails. New native installs enable app authentication on first boot and print the bootstrap admin password file path.
+
+Supported native targets:
+
+| Area | Supported |
+|---|---|
+| Package manager family | `apt` (Debian/Ubuntu), `dnf`/`yum` (Fedora/RHEL family), `pacman` (Arch family) |
+| CPU | glibc Linux `x86_64` or `aarch64` |
+| Python | Python 3.10+ available from the OS/package set |
+| Runtime | running systemd recommended; background fallback is available for WSL/container-like environments |
+
+The installer does not mutate the machine-wide Node.js installation. It downloads a checksum-verified Node.js build runtime into the install tree for the Vite build and uses `npm ci` from `frontend/package-lock.json`.
+
+Useful non-interactive examples:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/paoloronco/infra-agent/master/install.sh \
+  | sudo bash -s -- --yes --domain infra.example.com
+
+sudo bash /opt/ai-agent/install.sh --yes --no-nginx --runtime background --backend-port 8000
+sudo bash /opt/ai-agent/install.sh --yes --ref v1.2.3
+```
+
+On systems without running systemd, background mode writes logs to `/var/log/ai-agent/backend.log`. For a production container deployment, prefer a versioned OCI image plus an external supervisor/orchestrator instead of treating background mode as a reboot-safe service manager.
 
 Alternative manual install:
 
@@ -77,7 +100,7 @@ Windows:
 
 Manual setup:
 
-Requires Node.js 20.19+ or 22.12+ for the Vite frontend build.
+Requires Python 3.10+ and Node.js 20.19+ or 22.12+ for the Vite frontend build.
 
 ```bash
 cd backend
@@ -90,7 +113,7 @@ python main.py
 
 ```bash
 cd frontend
-npm install
+npm ci
 npm run dev
 ```
 
