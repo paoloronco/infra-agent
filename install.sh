@@ -621,6 +621,11 @@ prepare_permissions() {
     chmod 750 "$STAGE_DIR/backend/data"
     chmod +x "$STAGE_DIR"/*.sh 2>/dev/null || true
     chown -R "$APP_USER:$APP_GROUP" "$STAGE_DIR"
+
+    # Nginx workers are not the service user. Expose only the SPA build path.
+    chmod 755 "$STAGE_DIR" "$STAGE_DIR/frontend" "$STAGE_DIR/frontend/dist"
+    find "$STAGE_DIR/frontend/dist" -type d -exec chmod 755 {} +
+    find "$STAGE_DIR/frontend/dist" -type f -exec chmod 644 {} +
 }
 
 swap_install_tree() {
@@ -704,6 +709,19 @@ restart_nginx() {
     fi
 }
 
+verify_nginx_frontend() {
+    local attempt
+    for attempt in $(seq 1 10); do
+        if curl -fsS -H "Host: $DOMAIN" "http://127.0.0.1/" >/dev/null 2>&1; then
+            return
+        fi
+        sleep 1
+    done
+
+    tail -n 80 /var/log/nginx/error.log 2>/dev/null || true
+    fatal "Nginx did not serve the infra-agent frontend successfully on port 80."
+}
+
 configure_nginx() {
     local nginx_conf=""
     log "Configuring Nginx reverse proxy..."
@@ -727,6 +745,7 @@ configure_nginx() {
     sed -i "s|127.0.0.1:8000|127.0.0.1:$BACKEND_PORT|g" "$nginx_conf"
     sed -i "s|server_name _;|server_name $DOMAIN;|g" "$nginx_conf"
     restart_nginx
+    verify_nginx_frontend
 }
 
 print_summary() {

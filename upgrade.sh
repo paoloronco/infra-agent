@@ -104,6 +104,7 @@ verify_backend() {
 refresh_nginx_config() {
     local nginx_conf="/etc/nginx/sites-available/${SERVICE_NAME}"
     local server_name="_"
+    local nginx_host="_"
 
     if [[ ! -f "$nginx_conf" && -f "/etc/nginx/conf.d/${SERVICE_NAME}.conf" ]]; then
         nginx_conf="/etc/nginx/conf.d/${SERVICE_NAME}.conf"
@@ -121,6 +122,7 @@ refresh_nginx_config() {
 
     server_name="$(grep -E '^[[:space:]]*server_name[[:space:]]+' "$nginx_conf" | head -n1 | sed -E 's/^[[:space:]]*server_name[[:space:]]+([^;]+);/\1/')"
     server_name="${server_name:-_}"
+    nginx_host="${server_name%% *}"
     cp "$INSTALL_DIR/deploy/nginx.conf.template" "$nginx_conf"
     sed -i "s|/opt/ai-agent|$INSTALL_DIR|g" "$nginx_conf"
     sed -i "s|127.0.0.1:8000|127.0.0.1:$BACKEND_PORT|g" "$nginx_conf"
@@ -133,6 +135,11 @@ refresh_nginx_config() {
         service nginx reload || service nginx restart
     else
         nginx -s reload
+    fi
+
+    if ! curl -fsS -H "Host: $nginx_host" "http://127.0.0.1/" >/dev/null 2>&1; then
+        tail -n 80 /var/log/nginx/error.log 2>/dev/null || true
+        fatal "Nginx did not serve the infra-agent frontend successfully on port 80."
     fi
 }
 
@@ -185,6 +192,11 @@ log "Rebuilding frontend from package-lock.json..."
 run_as_app env PATH="$NODE_PATH" npm --prefix "$INSTALL_DIR/frontend" ci --no-audit --no-fund --silent
 run_as_app env PATH="$NODE_PATH" npm --prefix "$INSTALL_DIR/frontend" run build --silent
 rm -rf "$INSTALL_DIR/frontend/node_modules"
+
+# Nginx workers are not the service user. Expose only the SPA build path.
+chmod 755 "$INSTALL_DIR" "$INSTALL_DIR/frontend" "$INSTALL_DIR/frontend/dist"
+find "$INSTALL_DIR/frontend/dist" -type d -exec chmod 755 {} +
+find "$INSTALL_DIR/frontend/dist" -type f -exec chmod 644 {} +
 
 if systemd_is_running && [[ -f "/etc/systemd/system/${SERVICE_NAME}.service" ]]; then
     log "Refreshing systemd unit and restarting service..."
