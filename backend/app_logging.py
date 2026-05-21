@@ -20,8 +20,8 @@ def configure_application_logging(level: str = "INFO") -> None:
     if _logging_configured:
         return
 
-    logs_dir = Path(__file__).parent / "logs"
-    logs_dir.mkdir(exist_ok=True)
+    logs_dir = Path(__file__).parent / "data" / "logs"
+    logs_dir.mkdir(parents=True, exist_ok=True)
     log_file = logs_dir / "app.log"
 
     file_handler = RotatingFileHandler(

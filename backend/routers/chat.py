@@ -551,7 +551,7 @@ def _update_run_in_db(run_id: str, *, status: str, error: Optional[str] = None) 
 
 # ── Attachment processing ─────────────────────────────────────────────────────
 
-_UPLOADS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "uploads")
+_UPLOADS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "uploads")
 _VISION_PROVIDERS = frozenset({"openai", "anthropic", "gemini", "xai", "zhipu", "openrouter"})
 
 # Per-file text limits (chars): generous for current message, compact for history

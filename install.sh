@@ -580,6 +580,18 @@ preserve_runtime_state() {
     elif [[ ! -f "$STAGE_DIR/backend/.env" ]]; then
         cp "$STAGE_DIR/backend/.env.example" "$STAGE_DIR/backend/.env"
     fi
+
+    # Move runtime files created by older installs under the durable data root.
+    if [[ -d "$INSTALL_DIR/backend/uploads" && ! -e "$STAGE_DIR/backend/data/uploads" ]]; then
+        log "Migrating legacy backend uploads into backend/data..."
+        mkdir -p "$STAGE_DIR/backend/data"
+        cp -a "$INSTALL_DIR/backend/uploads" "$STAGE_DIR/backend/data/uploads"
+    fi
+    if [[ -d "$INSTALL_DIR/backend/logs" && ! -e "$STAGE_DIR/backend/data/logs" ]]; then
+        log "Migrating legacy backend file logs into backend/data..."
+        mkdir -p "$STAGE_DIR/backend/data"
+        cp -a "$INSTALL_DIR/backend/logs" "$STAGE_DIR/backend/data/logs"
+    fi
 }
 
 set_env_value() {
