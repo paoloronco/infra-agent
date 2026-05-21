@@ -35,7 +35,7 @@ Native Linux install:
 curl -fsSL https://raw.githubusercontent.com/paoloronco/infra-agent/master/install.sh | sudo bash
 ```
 
-The one-line installer uses defaults automatically: `/opt/ai-agent`, Nginx on port `80`, and the first free backend port starting from `8000`. It builds into a staging directory, preserves `backend/data` and `.env` on reinstall, health-checks the backend before it reports success, and restores the previous install tree if cutover fails. New native installs enable app authentication on first boot and print the bootstrap admin password file path.
+The one-line installer uses defaults automatically: `/opt/ai-agent`, Nginx on port `80`, and the first free backend port starting from `8000`. It builds into a staging directory, preserves `backend/data` and `.env` on reinstall, health-checks the backend before it reports success, and restores the previous install tree if cutover fails. Authentication is disabled on first boot; enable it from Settings when the UI is ready to require login.
 
 Supported native targets:
 

@@ -11,6 +11,7 @@ from auth import (
     get_auth_enabled, set_auth_enabled, AuthConfig, UserCreate, UserUpdate, UserResponse,
     create_user, update_user, delete_user, list_users, get_user,
     require_admin, get_current_user, verify_user, create_access_token, change_password,
+    init_default_admin,
 )
 
 logger = logging.getLogger(__name__)
@@ -68,11 +69,12 @@ def update_auth_config(config: AuthConfig, current_user: dict = Depends(require_
     
     if config.enabled and not auth_enabled:
         # Enable authentication
+        init_default_admin()
         set_auth_enabled(True)
         logger.info("Authentication enabled (persisted to DB)")
         return {
             "enabled": True,
-            "message": "Authentication enabled. Use the configured admin account or the generated bootstrap password from backend/data/bootstrap_admin_password.txt."
+            "message": "Authentication enabled. If no admin password was configured, use the bootstrap password generated in backend/data/bootstrap_admin_password.txt."
         }
     elif not config.enabled and auth_enabled:
         # Disable authentication

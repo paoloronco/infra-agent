@@ -612,7 +612,6 @@ configure_env_file() {
 
     set_env_value "$STAGE_DIR/backend/.env" "API_HOST" "$bind_host"
     set_env_value "$STAGE_DIR/backend/.env" "API_PORT" "$BACKEND_PORT"
-    set_env_value "$STAGE_DIR/backend/.env" "AUTH_ENABLED_BY_DEFAULT" "true"
     chmod 600 "$STAGE_DIR/backend/.env"
 }
 
@@ -762,7 +761,6 @@ print_summary() {
     printf "Backend port: %s\n" "$BACKEND_PORT"
     printf "Runtime: %s\n" "$RUNTIME_MODE"
     printf "Source ref: %s\n" "$SOURCE_REF"
-    printf "First-login bootstrap password: %s/backend/data/bootstrap_admin_password.txt\n" "$INSTALL_DIR"
 
     printf "\nUseful commands:\n"
     if [[ "$RUNTIME_MODE" == "systemd" ]]; then

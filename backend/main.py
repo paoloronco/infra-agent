@@ -46,8 +46,10 @@ def _startup() -> None:
         details={"version": settings.api_version},
     )
 
-    logger.info("Authentication: %s", "enabled" if get_auth_enabled() else "disabled")
-    init_default_admin()
+    auth_enabled = get_auth_enabled()
+    logger.info("Authentication: %s", "enabled" if auth_enabled else "disabled")
+    if auth_enabled:
+        init_default_admin()
 
 
 @asynccontextmanager
