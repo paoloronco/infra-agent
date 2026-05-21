@@ -720,7 +720,7 @@ configure_nginx() {
     fi
 
     sed -i "s|/opt/ai-agent|$INSTALL_DIR|g" "$nginx_conf"
-    sed -i -E "s|(localhost|127\.0\.0\.1):8000|127.0.0.1:$BACKEND_PORT|g" "$nginx_conf"
+    sed -i "s|127.0.0.1:8000|127.0.0.1:$BACKEND_PORT|g" "$nginx_conf"
     sed -i "s|server_name _;|server_name $DOMAIN;|g" "$nginx_conf"
     restart_nginx
 }

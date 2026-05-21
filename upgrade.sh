@@ -118,7 +118,7 @@ refresh_nginx_config() {
     server_name="${server_name:-_}"
     cp "$INSTALL_DIR/deploy/nginx.conf.template" "$nginx_conf"
     sed -i "s|/opt/ai-agent|$INSTALL_DIR|g" "$nginx_conf"
-    sed -i -E "s|(localhost|127\.0\.0\.1):8000|127.0.0.1:$BACKEND_PORT|g" "$nginx_conf"
+    sed -i "s|127.0.0.1:8000|127.0.0.1:$BACKEND_PORT|g" "$nginx_conf"
     sed -i "s|server_name _;|server_name $server_name;|g" "$nginx_conf"
     nginx -t
 
