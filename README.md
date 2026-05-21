@@ -37,11 +37,6 @@ curl -fsSL https://raw.githubusercontent.com/paoloronco/infra-agent/master/insta
 
 The one-line installer uses defaults automatically: `/opt/ai-agent`, Nginx on port `80`, and the first free backend port starting from `8000`. It builds into a staging directory, preserves `backend/data` and `.env` on reinstall, health-checks the backend before it reports success, and restores the previous install tree if cutover fails. Authentication is disabled on first boot; enable it from Settings when the UI is ready to require login.
 
-Google Cloud Shell is detected as an ephemeral preview environment. In the default
-one-line path the installer skips Nginx there, uses background runtime on port
-`8080`, and prints a Cloud Shell web-preview URL. Use a real VM, container
-orchestrator, or another persistent Linux host for production deployment.
-
 Supported native targets:
 
 | Area | Supported |
