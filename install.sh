@@ -712,6 +712,10 @@ configure_nginx() {
         nginx_conf="/etc/nginx/sites-available/${SERVICE_NAME}"
         cp "$INSTALL_DIR/deploy/nginx.conf.template" "$nginx_conf"
         ln -sf "$nginx_conf" "/etc/nginx/sites-enabled/${SERVICE_NAME}"
+        if [[ -L /etc/nginx/sites-enabled/default ]]; then
+            log "Disabling packaged Nginx welcome site so infra-agent owns port 80."
+            rm -f /etc/nginx/sites-enabled/default
+        fi
     elif [[ -d /etc/nginx/conf.d ]]; then
         nginx_conf="/etc/nginx/conf.d/${SERVICE_NAME}.conf"
         cp "$INSTALL_DIR/deploy/nginx.conf.template" "$nginx_conf"

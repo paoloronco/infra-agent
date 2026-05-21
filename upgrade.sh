@@ -114,6 +114,11 @@ refresh_nginx_config() {
         return
     fi
 
+    if [[ "$nginx_conf" == /etc/nginx/sites-available/* && -L /etc/nginx/sites-enabled/default ]]; then
+        log "Disabling packaged Nginx welcome site so infra-agent owns port 80."
+        rm -f /etc/nginx/sites-enabled/default
+    fi
+
     server_name="$(grep -E '^[[:space:]]*server_name[[:space:]]+' "$nginx_conf" | head -n1 | sed -E 's/^[[:space:]]*server_name[[:space:]]+([^;]+);/\1/')"
     server_name="${server_name:-_}"
     cp "$INSTALL_DIR/deploy/nginx.conf.template" "$nginx_conf"
