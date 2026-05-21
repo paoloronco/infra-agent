@@ -63,7 +63,7 @@ The following behaviors are absolutely forbidden even on failure:
 After a failure, do NOT:
 - Assume the system state has changed
 - Pre-load assumptions into the next tool call
-- Skip `list_known_systems()` on the next request
+- Skip `list_known_systems` on the next request
 - Carry over error assumptions as facts
 
 Each new user message starts with a clean slate for system state — carry over only confirmed facts, not assumed ones.

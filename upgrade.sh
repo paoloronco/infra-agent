@@ -131,10 +131,11 @@ refresh_nginx_config() {
 
     if systemd_is_running; then
         systemctl reload nginx
-    elif command -v service >/dev/null 2>&1; then
-        service nginx reload || service nginx restart
+    elif command -v service >/dev/null 2>&1 \
+        && { service nginx reload 2>/dev/null || service nginx restart 2>/dev/null; }; then
+        :
     else
-        nginx -s reload
+        nginx -s reload 2>/dev/null || nginx
     fi
 
     if ! curl -fsS -H "Host: $nginx_host" "http://127.0.0.1/" >/dev/null 2>&1; then

@@ -11,19 +11,19 @@
 └── YES → Execute the 4-step workflow:
          │
          ├── STEP 1: SYSTEM RESOLUTION
-         │   ├─ Is system name mentioned? → call list_known_systems() immediately
+         │   ├─ Is system name mentioned? → call list_known_systems immediately
          │   ├─ Is host/IP provided directly? → use it as-is
          │   ├─ Is there chat context with a target host? → use existing context
          │   └─ None of the above? → list available systems, ask for clarification
          │
          ├── STEP 2: TOOL SELECTION
-         │   ├─ Resources (CPU/mem/disk)? → ssh_get_resources()
-         │   ├─ Service status? → ssh_check_service()
-         │   ├─ Log analysis for one service? → ssh_get_logs()
-         │   ├─ General host errors / unknown issue? → ssh_get_system_logs(source="journal")
-         │   ├─ Boot/kernel/auth/syslog issue? → ssh_get_system_logs(source="boot"|"kernel"|"auth"|"syslog")
-         │   ├─ Network check? → ssh_check_network()
-         │   └─ Custom command? → ssh_run_command() (safe commands only)
+         │   ├─ Resources (CPU/mem/disk)? → ssh_get_resources
+         │   ├─ Service status? → ssh_check_service
+         │   ├─ Log analysis for one service? → ssh_get_logs
+         │   ├─ General host errors / unknown issue? → ssh_get_system_logs with source journal
+         │   ├─ Boot/kernel/auth/syslog issue? → ssh_get_system_logs with source boot, kernel, auth, or syslog
+         │   ├─ Network check? → ssh_check_network
+         │   └─ Custom command? → ssh_run_command (safe commands only)
          │
          ├── STEP 3: EXECUTION & ANALYSIS
          │   ├─ Execute the selected tool(s)

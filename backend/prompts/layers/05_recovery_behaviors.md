@@ -5,7 +5,7 @@
 When `ssh_*` tools return a connection error:
 
 1. Report the exact error.
-2. Call `list_known_systems()` to verify stored host, port, username, and key path.
+2. Call `list_known_systems` to verify stored host, port, username, and key path.
 3. Provide diagnostics from the registry.
 4. Stop only when the failure is a real human blocker: unreachable host, authentication failure, missing key, host-key rejection, or ambiguous target.
 5. Do not consume repeated retries on the same unreachable endpoint.
@@ -16,9 +16,9 @@ When a tool returns an error that is not a connection failure, keep the task act
 
 ```
 STRATEGY 1: Alternative tool
-  ssh_check_service fails -> try ssh_run_command("systemctl status {service}")
-  ssh_get_resources fails -> try ssh_run_command("top -bn1 && free -h && df -h")
-  ssh_get_logs fails      -> try ssh_run_command("journalctl -u {service} -n 50")
+  ssh_check_service fails -> use ssh_run_command with "systemctl status {service}"
+  ssh_get_resources fails -> use ssh_run_command with "top -bn1 && free -h && df -h"
+  ssh_get_logs fails      -> use ssh_run_command with "journalctl -u {service} -n 50"
   ssh_run_command returns command-not-found/127
                          -> detect OS/package manager, identify candidate package,
                             request approval for install if needed, verify binary,

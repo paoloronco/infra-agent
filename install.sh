@@ -18,19 +18,24 @@ NODE_VERSION="${INFRA_AGENT_NODE_VERSION:-24.15.0}"
 
 if [[ -n "${BASH_SOURCE[0]:-}" ]]; then
     SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    PROJECT_SOURCE="$SCRIPT_DIR"
 else
-    SCRIPT_DIR="$(pwd)"
+    # curl | bash has no script path. Always clone in that mode instead of
+    # accidentally staging an unrelated checkout from the caller's cwd.
+    SCRIPT_DIR=""
+    PROJECT_SOURCE=""
 fi
 
-PROJECT_SOURCE="$SCRIPT_DIR"
 INSTALL_DIR="/opt/ai-agent"
 BACKEND_PORT="8000"
 BACKEND_PORT_EXPLICIT="no"
 DOMAIN="_"
 DOMAIN_EXPLICIT="no"
 INSTALL_NGINX="yes"
+INSTALL_NGINX_EXPLICIT="no"
 RUNTIME_MODE="auto"
 AUTO_YES="no"
+CLOUD_SHELL_MODE="no"
 
 PACKAGE_MANAGER=""
 OS_ID="unknown"
@@ -64,6 +69,7 @@ Options:
   --install-dir PATH       Absolute install directory. Default: /opt/ai-agent
   --backend-port PORT      Backend port. Default: first free port from 8000.
   --domain NAME            Nginx server_name or IP. Default: detected host IP.
+  --nginx                  Force Nginx reverse proxy installation.
   --no-nginx               Install backend without the Nginx reverse proxy.
   --runtime MODE           auto, systemd, or background. Default: auto.
   --no-systemd             Alias for --runtime background.
@@ -80,6 +86,14 @@ systemd_is_running() {
     command -v systemctl >/dev/null 2>&1 \
         && [[ -d /run/systemd/system ]] \
         && systemctl list-unit-files >/dev/null 2>&1
+}
+
+is_google_cloud_shell() {
+    [[ -n "${WEB_HOST:-}" ]] && {
+        [[ -n "${CLOUD_SHELL:-}" ]] \
+            || [[ -n "${DEVSHELL_PROJECT_ID:-}" ]] \
+            || [[ "${WEB_HOST:-}" == *cloudshell* ]]
+    }
 }
 
 run_as_app() {
@@ -170,8 +184,14 @@ while [[ $# -gt 0 ]]; do
             DOMAIN_EXPLICIT="yes"
             shift 2
             ;;
+        --nginx)
+            INSTALL_NGINX="yes"
+            INSTALL_NGINX_EXPLICIT="yes"
+            shift
+            ;;
         --no-nginx)
             INSTALL_NGINX="no"
+            INSTALL_NGINX_EXPLICIT="yes"
             shift
             ;;
         --runtime)
@@ -212,6 +232,8 @@ validate_install_dir() {
     [[ "$INSTALL_DIR" != "/" ]] || fatal "Refusing to install into /."
     [[ "$INSTALL_DIR" != "/opt" ]] || fatal "Refusing to replace /opt."
     [[ "$INSTALL_DIR" != *[[:space:]]* ]] || fatal "Install directory cannot contain whitespace."
+    [[ "$INSTALL_DIR" =~ ^/[A-Za-z0-9._+/-]+$ ]] \
+        || fatal "Install directory contains unsupported characters: $INSTALL_DIR"
 }
 
 validate_port() {
@@ -254,6 +276,42 @@ detect_package_manager() {
     else
         fatal "Unsupported Linux environment: apt, dnf/yum, or pacman is required."
     fi
+}
+
+detect_environment() {
+    if is_google_cloud_shell; then
+        CLOUD_SHELL_MODE="yes"
+    fi
+}
+
+apply_environment_defaults() {
+    if [[ "$CLOUD_SHELL_MODE" != "yes" ]]; then
+        return
+    fi
+
+    warn "Google Cloud Shell detected. Its VM/container is temporary; this install will not be a persistent production deployment."
+    if [[ "$AUTO_YES" == "yes" && "$INSTALL_NGINX_EXPLICIT" == "no" ]]; then
+        INSTALL_NGINX="no"
+        warn "Using backend-only Cloud Shell mode by default; Nginx is skipped. Pass --nginx to force the reverse proxy."
+    fi
+    if [[ "$AUTO_YES" == "yes" && "$BACKEND_PORT_EXPLICIT" == "no" ]]; then
+        BACKEND_PORT="8080"
+        log "Using backend port 8080 for Cloud Shell web preview."
+    fi
+}
+
+validate_installer_helpers() {
+    local helper
+    for helper in install_system_dependencies resolve_python ensure_app_user \
+        prepare_stage_dir stage_source install_build_node_runtime \
+        prepare_backend_and_frontend stop_previous_app resolve_backend_port \
+        preserve_runtime_state configure_env_file merge_package_manifest \
+        prepare_permissions swap_install_tree resolve_runtime_mode \
+        install_systemd_service start_backend_background verify_backend \
+        configure_nginx print_summary; do
+        declare -F "$helper" >/dev/null 2>&1 \
+            || fatal "Installer helper '$helper' is missing. Re-download install.sh and retry."
+    done
 }
 
 package_is_installed() {
@@ -354,14 +412,18 @@ resolve_python() {
 
 detect_local_ip() {
     local ip=""
-    ip="$(ip -4 route get 1.1.1.1 2>/dev/null | awk '{for(i=1;i<=NF;i++) if($i=="src") {print $(i+1); exit}}')"
-    [[ -n "$ip" ]] && printf "%s\n" "$ip" && return
+    if command -v ip >/dev/null 2>&1; then
+        ip="$(ip -4 route get 1.1.1.1 2>/dev/null | awk '{for(i=1;i<=NF;i++) if($i=="src") {print $(i+1); exit}}' || true)"
+        [[ -n "$ip" ]] && printf "%s\n" "$ip" && return
 
-    ip="$(ip -4 addr show 2>/dev/null | awk '/inet / && !/127\./ {gsub("/.*","",$2); print $2; exit}')"
-    [[ -n "$ip" ]] && printf "%s\n" "$ip" && return
+        ip="$(ip -4 addr show 2>/dev/null | awk '/inet / && !/127\./ {gsub("/.*","",$2); print $2; exit}' || true)"
+        [[ -n "$ip" ]] && printf "%s\n" "$ip" && return
+    fi
 
-    ip="$(hostname -I 2>/dev/null | awk '{print $1}')"
-    [[ -n "$ip" ]] && printf "%s\n" "$ip" && return
+    if command -v hostname >/dev/null 2>&1; then
+        ip="$(hostname -I 2>/dev/null | awk '{print $1}' || true)"
+        [[ -n "$ip" ]] && printf "%s\n" "$ip" && return
+    fi
 
     printf "_\n"
 }
@@ -460,7 +522,7 @@ prepare_stage_dir() {
 }
 
 stage_source() {
-    if [[ -d "$PROJECT_SOURCE/backend" && -d "$PROJECT_SOURCE/frontend" ]]; then
+    if [[ -n "$PROJECT_SOURCE" && -d "$PROJECT_SOURCE/backend" && -d "$PROJECT_SOURCE/frontend" ]]; then
         log "Staging source from local checkout $PROJECT_SOURCE..."
         cp -a "$PROJECT_SOURCE/." "$STAGE_DIR/"
     else
@@ -701,11 +763,15 @@ restart_nginx() {
     if systemd_is_running; then
         systemctl enable nginx >/dev/null 2>&1 || true
         systemctl restart nginx
-    elif command -v service >/dev/null 2>&1; then
-        service nginx restart || service nginx start
-    else
-        nginx -s reload 2>/dev/null || nginx
+        return
     fi
+
+    if command -v service >/dev/null 2>&1; then
+        service nginx restart 2>/dev/null && return
+        service nginx start 2>/dev/null && return
+    fi
+
+    nginx -s reload 2>/dev/null || nginx
 }
 
 verify_nginx_frontend() {
@@ -754,6 +820,9 @@ print_summary() {
     success "Infra Agent installation completed."
     if [[ "$INSTALL_NGINX" == "yes" ]]; then
         printf "\nAccess URL: http://%s\n" "$public_host"
+    elif [[ "$CLOUD_SHELL_MODE" == "yes" && -n "${WEB_HOST:-}" ]]; then
+        printf "\nAccess URL: https://%s-%s\n" "$BACKEND_PORT" "$WEB_HOST"
+        printf "Local URL: http://127.0.0.1:%s\n" "$BACKEND_PORT"
     else
         printf "\nAccess URL: http://%s:%s\n" "$(detect_local_ip)" "$BACKEND_PORT"
     fi
@@ -778,6 +847,8 @@ validate_install_dir
 validate_port
 acquire_lock
 detect_package_manager
+detect_environment
+apply_environment_defaults
 
 DETECTED_IP="$(detect_local_ip)"
 if [[ "$AUTO_YES" == "yes" && "$DOMAIN_EXPLICIT" == "no" ]]; then
@@ -794,7 +865,10 @@ if [[ "$AUTO_YES" == "no" ]]; then
     [[ -n "$input_port" ]] && BACKEND_PORT_EXPLICIT="yes"
 
     read -r -p "Configure Nginx reverse proxy? (y/n) [y]: " input_nginx
-    [[ "$input_nginx" == "n" || "$input_nginx" == "N" ]] && INSTALL_NGINX="no"
+    if [[ "$input_nginx" == "n" || "$input_nginx" == "N" ]]; then
+        INSTALL_NGINX="no"
+        INSTALL_NGINX_EXPLICIT="yes"
+    fi
 
     if [[ "$INSTALL_NGINX" == "yes" ]]; then
         read -r -p "Domain or server IP [$DETECTED_IP]: " input_domain
@@ -807,6 +881,7 @@ validate_port
 [[ "$DOMAIN" == "_" ]] || validate_domain
 
 log "Detected OS id: $OS_ID; package manager: $PACKAGE_MANAGER."
+validate_installer_helpers
 install_system_dependencies
 resolve_python
 ensure_app_user

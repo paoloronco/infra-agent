@@ -195,11 +195,14 @@ const PROVIDER_LABEL = {
 
 export const MODELS_BY_PROVIDER = {
   groq: [
-    { id: 'llama-3.3-70b-versatile',            name: 'Llama 3.3 70B',        tag: 'Recommended' },
-    { id: 'llama-4-scout-17b-16e-instruct',      name: 'Llama 4 Scout',        tag: 'New' },
-    { id: 'llama-4-maverick-17b-128e-instruct',  name: 'Llama 4 Maverick',     tag: 'New' },
-    { id: 'llama-3.1-8b-instant',                name: 'Llama 3.1 8B',         tag: 'Fast' },
-    { id: 'gemma2-9b-it',                        name: 'Gemma 2 9B',           tag: '' },
+    { id: 'llama-3.3-70b-versatile',                       name: 'Llama 3.3 70B',     tag: 'Recommended' },
+    { id: 'openai/gpt-oss-120b',                            name: 'GPT-OSS 120B',      tag: 'Tool use' },
+    { id: 'openai/gpt-oss-20b',                             name: 'GPT-OSS 20B',       tag: 'Fast' },
+    { id: 'qwen/qwen3-32b',                                 name: 'Qwen 3 32B',        tag: 'Tool use' },
+    { id: 'meta-llama/llama-4-scout-17b-16e-instruct',      name: 'Llama 4 Scout',     tag: 'Vision' },
+    { id: 'meta-llama/llama-4-maverick-17b-128e-instruct',  name: 'Llama 4 Maverick',  tag: 'Vision' },
+    { id: 'llama-3.1-8b-instant',                           name: 'Llama 3.1 8B',      tag: 'Fast' },
+    { id: 'gemma2-9b-it',                                   name: 'Gemma 2 9B',        tag: '' },
   ],
   openai: [
     { id: 'gpt-5.5',             name: 'GPT-5.5',      tag: 'Top',         vision: true },

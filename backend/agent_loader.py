@@ -91,6 +91,27 @@ def _output_to_text(output: Any) -> str:
         return str(output or "")
 
 
+def _message_text(output: Any) -> str:
+    """Extract text from model messages and streamed content blocks."""
+    content = getattr(output, "content", output)
+    if isinstance(content, dict):
+        content = content.get("content", content.get("text", ""))
+    if isinstance(content, str):
+        return content
+    if not isinstance(content, list):
+        return ""
+
+    text_parts: List[str] = []
+    for part in content:
+        if isinstance(part, str):
+            text_parts.append(part)
+        elif isinstance(part, dict):
+            text = part.get("text")
+            if isinstance(text, str):
+                text_parts.append(text)
+    return "".join(text_parts)
+
+
 def _parse_json_output(output: Any) -> Optional[Dict[str, Any]]:
     text = _output_to_text(output).strip()
     if not text:
@@ -284,7 +305,7 @@ def _approval_from_tool_output(output: Any):
 
 
 # ── Model → provider mapping (single source of truth in models_registry.py) ──
-from models_registry import MODEL_PROVIDER_MAP
+from models_registry import MODEL_PROVIDER_MAP, canonical_model_id
 
 # Providers that use the OpenAI-compatible API with a custom base_url
 _OPENAI_COMPAT_PROVIDERS = frozenset({
@@ -360,6 +381,7 @@ def build_llm(model_id: str):
     Reads API keys from DB (Models page) with .env fallback for Groq.
     Raises ValueError with a user-friendly message if key is missing.
     """
+    model_id = canonical_model_id(model_id)
     provider = MODEL_PROVIDER_MAP.get(model_id, "groq")
     api_key = _get_api_key_from_db(provider)
 
@@ -372,7 +394,12 @@ def build_llm(model_id: str):
                 "Go to **Models** → Groq → enter your key from https://console.groq.com"
             )
         from langchain_groq import ChatGroq
-        return ChatGroq(model=model_id, temperature=settings.llm_temperature, api_key=api_key)
+        return ChatGroq(
+            model=model_id,
+            temperature=settings.llm_temperature,
+            api_key=api_key,
+            disable_streaming="tool_calling",
+        )
 
     elif provider == "openai":
         if not api_key:
@@ -1116,6 +1143,7 @@ class EnhancedSSHTroubleshootingAgent:
 
         streamed_any = False
         stream_error = None
+        non_stream_text = ""
 
         try:
             async for event in graph.astream_events(
@@ -1133,6 +1161,10 @@ class EnhancedSSHTroubleshootingAgent:
                     if content:
                         streamed_any = True
                         yield content
+                elif event["event"] == "on_chat_model_end":
+                    text = _message_text(event["data"].get("output")).strip()
+                    if text:
+                        non_stream_text = text
         except Exception as e:
             from approvals import ApprovalRequired
             if isinstance(e, ApprovalRequired):
@@ -1140,7 +1172,10 @@ class EnhancedSSHTroubleshootingAgent:
             stream_error = e
             logger.error("Streaming failed: %s", e, exc_info=True)
 
-        if stream_error and not streamed_any:
+        if not stream_error and not streamed_any and non_stream_text:
+            from agent.guardrails import sanitize_response
+            yield sanitize_response(non_stream_text)
+        elif stream_error and not streamed_any:
             logger.info("Falling back to sync invoke after stream error")
             try:
                 result = graph.invoke({"messages": input_messages}, config=config)
@@ -1215,6 +1250,7 @@ class EnhancedSSHTroubleshootingAgent:
             streamed_any = False
             stream_error = None
             attempt_text = ""
+            non_stream_text = ""
             failures: List[Dict[str, Any]] = []
 
             try:
@@ -1275,6 +1311,12 @@ class EnhancedSSHTroubleshootingAgent:
                             streamed_any = True
                             attempt_text += content
                             yield content
+                        continue
+
+                    if event_name == "on_chat_model_end":
+                        text = _message_text(event_data.get("output")).strip()
+                        if text:
+                            non_stream_text = text
             except Exception as e:
                 from approvals import ApprovalRequired
                 if isinstance(e, ApprovalRequired):
@@ -1282,7 +1324,12 @@ class EnhancedSSHTroubleshootingAgent:
                 stream_error = e
                 logger.error("Streaming failed: %s", e, exc_info=True)
 
-            if stream_error and not streamed_any:
+            if not stream_error and not streamed_any and non_stream_text:
+                from agent.guardrails import sanitize_response
+                text = sanitize_response(non_stream_text)
+                attempt_text += text
+                yield text
+            elif stream_error and not streamed_any:
                 logger.info("Falling back to sync invoke after stream error")
                 try:
                     result = graph.invoke({"messages": input_messages}, config=config)

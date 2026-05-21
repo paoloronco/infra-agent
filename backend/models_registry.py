@@ -9,11 +9,14 @@ from typing import Dict, List, Optional
 
 AVAILABLE_MODELS: List[Dict] = [
     # Groq
-    {"id": "llama-3.3-70b-versatile",                   "name": "Llama 3.3 70B",           "provider": "groq"},
-    {"id": "llama-4-scout-17b-16e-instruct",             "name": "Llama 4 Scout",           "provider": "groq"},
-    {"id": "llama-4-maverick-17b-128e-instruct",         "name": "Llama 4 Maverick",        "provider": "groq"},
-    {"id": "llama-3.1-8b-instant",                       "name": "Llama 3.1 8B",            "provider": "groq"},
-    {"id": "gemma2-9b-it",                               "name": "Gemma 2 9B",              "provider": "groq"},
+    {"id": "llama-3.3-70b-versatile",                         "name": "Llama 3.3 70B",           "provider": "groq"},
+    {"id": "openai/gpt-oss-120b",                             "name": "GPT-OSS 120B",            "provider": "groq"},
+    {"id": "openai/gpt-oss-20b",                              "name": "GPT-OSS 20B",             "provider": "groq"},
+    {"id": "qwen/qwen3-32b",                                  "name": "Qwen 3 32B",              "provider": "groq"},
+    {"id": "meta-llama/llama-4-scout-17b-16e-instruct",       "name": "Llama 4 Scout",           "provider": "groq"},
+    {"id": "meta-llama/llama-4-maverick-17b-128e-instruct",   "name": "Llama 4 Maverick",        "provider": "groq"},
+    {"id": "llama-3.1-8b-instant",                             "name": "Llama 3.1 8B",            "provider": "groq"},
+    {"id": "gemma2-9b-it",                                     "name": "Gemma 2 9B",              "provider": "groq"},
     # OpenAI
     {"id": "gpt-5.5",                                    "name": "GPT-5.5",                 "provider": "openai"},
     {"id": "gpt-5.4",                                    "name": "GPT-5.4",                 "provider": "openai"},
@@ -92,13 +95,26 @@ AVAILABLE_MODELS: List[Dict] = [
 
 # ── Derived lookups (computed once at import time) ────────────────────────────
 
+GROQ_MODEL_ALIASES: Dict[str, str] = {
+    # Older UI entries missed Groq's required meta-llama namespace.
+    "llama-4-scout-17b-16e-instruct": "meta-llama/llama-4-scout-17b-16e-instruct",
+    "llama-4-maverick-17b-128e-instruct": "meta-llama/llama-4-maverick-17b-128e-instruct",
+}
+
+
+def canonical_model_id(model_id: str) -> str:
+    """Return the provider model ID accepted by the upstream API."""
+    return GROQ_MODEL_ALIASES.get(model_id, model_id)
+
+
 MODEL_PROVIDER_MAP: Dict[str, str] = {m["id"]: m["provider"] for m in AVAILABLE_MODELS}
+MODEL_PROVIDER_MAP.update({legacy_id: "groq" for legacy_id in GROQ_MODEL_ALIASES})
 
 MODEL_IDS = {m["id"] for m in AVAILABLE_MODELS}
 
 
 def get_provider(model_id: str) -> str:
-    return MODEL_PROVIDER_MAP.get(model_id, "groq")
+    return MODEL_PROVIDER_MAP.get(canonical_model_id(model_id), "groq")
 
 
 # ── Provider metadata (for the Models config page) ───────────────────────────
@@ -177,8 +193,8 @@ PROVIDERS: Dict[str, Dict] = {
 _COST_TABLE: Dict[str, tuple] = {
     # Groq
     "llama-3.3-70b-versatile":                  (0.00059, 0.00079),
-    "llama-4-scout-17b-16e-instruct":            (0.00011, 0.00034),
-    "llama-4-maverick-17b-128e-instruct":        (0.00020, 0.00060),
+    "meta-llama/llama-4-scout-17b-16e-instruct":            (0.00011, 0.00034),
+    "meta-llama/llama-4-maverick-17b-128e-instruct":        (0.00020, 0.00060),
     "llama-3.1-8b-instant":                      (0.00005, 0.00008),
     "gemma2-9b-it":                              (0.00020, 0.00020),
     # OpenAI
@@ -229,7 +245,7 @@ _COST_TABLE: Dict[str, tuple] = {
 
 def calculate_cost(model_id: str, input_tokens: int, output_tokens: int) -> float:
     """Return estimated USD cost for a model call. Returns 0.0 for unknown models."""
-    costs = _COST_TABLE.get(model_id)
+    costs = _COST_TABLE.get(canonical_model_id(model_id))
     if not costs:
         return 0.0
     return round(input_tokens * costs[0] / 1000 + output_tokens * costs[1] / 1000, 6)
