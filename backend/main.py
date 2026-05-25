@@ -37,6 +37,13 @@ def _startup() -> None:
 
     init_db()
     logger.info("Database initialized")
+    try:
+        from memory.maintenance import maybe_run_memory_maintenance
+        stats = maybe_run_memory_maintenance()
+        if not stats.get("skipped"):
+            logger.info("Memory maintenance stats: %s", stats)
+    except Exception as exc:
+        logger.warning("Memory maintenance startup check failed: %s", exc)
     log_event(
         level="INFO",
         category="system",

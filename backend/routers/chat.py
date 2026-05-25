@@ -934,6 +934,24 @@ async def _ai_task(
         logger.error("Persistence failed for chat %d msg %d: %s", chat_id, assistant_msg_id, exc)
     finally:
         db.close()
+
+    try:
+        from memory.manager import get_memory_manager
+        await asyncio.to_thread(
+            get_memory_manager().record_interaction,
+            chat_id=chat_id,
+            user_message=query,
+            assistant_message=final_content,
+            target_host=current_host,
+            metadata={
+                "run_id": run_id,
+                "model": model,
+                "assistant_message_id": assistant_msg_id,
+            },
+        )
+    except Exception as exc:
+        logger.warning("Memory ingest failed for chat %d msg %d: %s", chat_id, assistant_msg_id, exc)
+
     _update_run_in_db(run_id, status="complete")
 
     # Send done sentinel

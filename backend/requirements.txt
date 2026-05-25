@@ -24,3 +24,4 @@ slowapi==0.1.9
 pypdf==6.6.2
 argon2-cffi==25.1.0
 psycopg[binary]==3.3.4
+honcho-ai==2.1.2

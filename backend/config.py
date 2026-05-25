@@ -32,6 +32,24 @@ class Settings(BaseSettings):
     # Database. Defaults to local SQLite; set DATABASE_URL for Postgres/MySQL/etc.
     database_url: str = ""
 
+    # Agent memory. "local" uses SQLite only; "honcho" uses Honcho with SQLite
+    # fallback; "hybrid" writes to both and retrieves from both.
+    memory_enabled: bool = True
+    memory_provider: str = "local"
+    memory_user_peer_id: str = "operator"
+    memory_assistant_peer_id: str = "sshagent"
+    memory_context_tokens: int = 2500
+    memory_maintenance_interval_days: int = 7
+    memory_summary_after_days: int = 30
+    memory_max_local_records: int = 5000
+
+    # Honcho configuration. HONCHO_API_KEY is required only when MEMORY_PROVIDER
+    # is "honcho" or "hybrid".
+    honcho_api_key: str = ""
+    honcho_workspace_id: str = "infra-agent"
+    honcho_environment: str = "production"
+    honcho_base_url: str = ""
+
     # Security
     auth_enabled_by_default: bool = False
     enable_command_validation: bool = True
