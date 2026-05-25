@@ -939,7 +939,7 @@ class EnhancedSSHTroubleshootingAgent:
         from ssh_toolkit import SSHToolkit
         from observability.callbacks import AgentTraceCallback
         from memory.short_term import get_or_create_session
-        from memory.long_term import get_long_term_memory
+        from memory.manager import get_memory_manager
         from agent.guardrails import check_user_input
         from agent.state import AgentRunState
         import uuid
@@ -968,9 +968,12 @@ class EnhancedSSHTroubleshootingAgent:
         session = get_or_create_session(chat_id)
         if target_host:
             session.target_host = target_host
-        long_term_context = get_long_term_memory().build_context_block(
-            categories=["preference", "system", "pattern", "error"]
+        memory_context = get_memory_manager().build_context_block(
+            query=query,
+            chat_id=chat_id,
+            target_host=target_host,
         )
+        long_term_context = memory_context.context_block
 
         # Build system prompt
         provider = MODEL_PROVIDER_MAP.get(model_id, "groq")

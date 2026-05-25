@@ -190,6 +190,42 @@ Open http://localhost:5173.
 </details>
 
 <details>
+<summary><strong>Agent Memory</strong></summary>
+
+The agent has a provider-neutral memory layer:
+
+```text
+chat turn
+|-- retrieve relevant memory before prompt assembly
+|-- run LangGraph agent
+|-- persist final assistant response
+`-- ingest useful memory from the completed turn
+```
+
+Configuration:
+
+| Variable | Default | Description |
+|---|---|---|
+| `MEMORY_ENABLED` | `true` | Enables memory retrieval and ingestion |
+| `MEMORY_PROVIDER` | `local` | `local`, `honcho`, or `hybrid` |
+| `MEMORY_CONTEXT_TOKENS` | `2500` | Target budget for injected memory context |
+| `MEMORY_MAINTENANCE_INTERVAL_DAYS` | `7` | Startup interval for memory cleanup/reflection |
+| `MEMORY_SUMMARY_AFTER_DAYS` | `30` | Age after which low-value local records can be compacted |
+| `MEMORY_MAX_LOCAL_RECORDS` | `5000` | Local SQLite memory cap |
+| `HONCHO_API_KEY` | empty | Required when using Honcho |
+| `HONCHO_WORKSPACE_ID` | `infra-agent` | Honcho workspace identifier |
+
+`local` stores selected memories in SQLite. `honcho` sends completed turns to
+Honcho and uses local SQLite as a fallback for explicit/user-critical memories.
+`hybrid` writes and retrieves from both.
+
+Memory maintenance runs at backend startup when the configured interval has
+elapsed. It deletes expired records, removes duplicates, compacts older
+low-importance operational records into summaries, and trims overflow.
+
+</details>
+
+<details>
 <summary><strong>Host Setup</strong></summary>
 
 1. Open **SSH Manager**.
@@ -412,6 +448,7 @@ The system prompt is composed from ordered Markdown layers:
 05_recovery_behaviors
 06_failure_handling
 07_attachment_handling
+08_memory_policy
 ```
 
 </details>

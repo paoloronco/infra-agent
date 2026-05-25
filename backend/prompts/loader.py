@@ -12,7 +12,7 @@ from typing import Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
-PROMPT_VERSION = "3.1.0"
+PROMPT_VERSION = "3.2.0"
 LAYERS_DIR = os.path.join(os.path.dirname(__file__), "layers")
 
 LAYER_ORDER: List[str] = [
@@ -24,6 +24,7 @@ LAYER_ORDER: List[str] = [
     "05_recovery_behaviors.md",
     "06_failure_handling.md",
     "07_attachment_handling.md",
+    "08_memory_policy.md",
 ]
 
 _layer_cache: Dict[str, str] = {}
