@@ -12,6 +12,11 @@ APP_USER="ai-agent"
 APP_GROUP="ai-agent"
 APP_HOME="/home/ai-agent"
 BACKEND_PORT="8000"
+LOCAL_CHANGES_BACKUP_DIR=""
+PRESERVED_TRACKED_FILES=(
+    "backend/agent_config.json"
+    "backend/agent_memory.md"
+)
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -64,6 +69,48 @@ resolve_backend_port() {
     if [[ "$configured_port" =~ ^[0-9]+$ ]]; then
         BACKEND_PORT="$configured_port"
     fi
+}
+
+backup_local_changes() {
+    local status
+    status="$(git status --porcelain --untracked-files=no)"
+    [[ -n "$status" ]] || return 0
+
+    local backup_dir="$INSTALL_DIR/backend/data/pre-upgrade-local-changes-$(date +%Y%m%d-%H%M%S)"
+    LOCAL_CHANGES_BACKUP_DIR="$backup_dir"
+    mkdir -p "$backup_dir"
+    chown "$APP_USER:$APP_GROUP" "$backup_dir" 2>/dev/null || true
+
+    git status --porcelain --untracked-files=no > "$backup_dir/status.txt"
+    git diff > "$backup_dir/local-changes.patch" || true
+    git diff --stat > "$backup_dir/local-changes.stat" || true
+
+    local path
+    for path in "${PRESERVED_TRACKED_FILES[@]}"; do
+        if [[ -f "$INSTALL_DIR/$path" && -n "$(git status --porcelain -- "$path")" ]]; then
+            mkdir -p "$backup_dir/$(dirname "$path")"
+            cp -a "$INSTALL_DIR/$path" "$backup_dir/$path"
+        fi
+    done
+
+    chown -R "$APP_USER:$APP_GROUP" "$backup_dir" 2>/dev/null || true
+    warn "Tracked local changes detected. Saved diagnostics to $backup_dir."
+    warn "Resetting tracked files so the upgrade can fast-forward cleanly."
+    git reset --hard --quiet
+}
+
+restore_preserved_runtime_files() {
+    local backup_dir="$1"
+    [[ -n "$backup_dir" && -d "$backup_dir" ]] || return 0
+
+    local path
+    for path in "${PRESERVED_TRACKED_FILES[@]}"; do
+        if [[ -f "$backup_dir/$path" ]]; then
+            mkdir -p "$INSTALL_DIR/$(dirname "$path")"
+            cp -a "$backup_dir/$path" "$INSTALL_DIR/$path"
+            chown "$APP_USER:$APP_GROUP" "$INSTALL_DIR/$path" 2>/dev/null || true
+        fi
+    done
 }
 
 stop_background_backend() {
@@ -153,9 +200,7 @@ id "$APP_USER" >/dev/null 2>&1 || fatal "Service account $APP_USER is missing. R
 cd "$INSTALL_DIR"
 resolve_backend_port
 
-if [[ -n "$(git status --porcelain --untracked-files=no)" ]]; then
-    fatal "Tracked files have local changes. Commit, stash, or reinstall before upgrading."
-fi
+backup_local_changes
 
 if [[ -f "$INSTALL_DIR/backend/data/app.db" ]]; then
     DB_BACKUP="$INSTALL_DIR/backend/data/app.db.pre-upgrade-$(date +%Y%m%d-%H%M%S)"
@@ -172,6 +217,7 @@ git fetch --quiet origin "$BRANCH"
 git merge --ff-only "origin/$BRANCH"
 NEW_COMMIT="$(git rev-parse --short HEAD)"
 log "Revision: $OLD_COMMIT -> $NEW_COMMIT"
+restore_preserved_runtime_files "$LOCAL_CHANGES_BACKUP_DIR"
 
 mkdir -p "$APP_HOME/.cache/pip" "$APP_HOME/.npm"
 chown -R "$APP_USER:$APP_GROUP" "$APP_HOME/.cache" "$APP_HOME/.npm"
