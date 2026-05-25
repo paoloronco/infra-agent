@@ -307,8 +307,8 @@ tr:hover td{background:rgba(255,255,255,0.01)}
     <div class="av-arrow">&#8597;&nbsp; HTTP / REST &nbsp;+&nbsp; SSE Streaming</div>
     <div class="av-layer av-backend">
       <div class="av-title">Backend API <span class="badge badge-blue">FastAPI</span></div>
-      <div class="av-chips"><span>Python 3.12</span><span>JWT Auth</span><span>Rate Limiting</span></div>
-      <div class="av-routes"><span>/api/chat</span><span>/api/auth</span><span>/api/models</span><span>/api/ssh</span><span>/api/logs</span><span>/api/backup</span></div>
+      <div class="av-chips"><span>Python 3.10+</span><span>JWT Auth</span><span>Rate Limiting</span></div>
+      <div class="av-routes"><span>/api/chats</span><span>/api/auth</span><span>/api/models</span><span>/ssh-key</span><span>/api/logs</span><span>/api/backup</span></div>
     </div>
     <div class="av-arrow">&#8597;</div>
     <div class="av-layer av-agent">
@@ -328,7 +328,7 @@ tr:hover td{background:rgba(255,255,255,0.01)}
       </div>
       <div class="av-layer av-hosts" style="margin-top: 0;">
         <div class="av-title">Target Hosts</div>
-        <div class="av-chips"><span>Ubuntu</span><span>Debian</span><span>RHEL</span><span>macOS</span></div>
+        <div class="av-chips"><span>Ubuntu</span><span>Debian</span><span>RHEL/Fedora</span><span>Arch</span></div>
       </div>
     </div>
   </div>
@@ -351,15 +351,15 @@ cd infra-agent
 sudo bash install.sh</code></pre>
 
   <div class="callout callout-info">
-    <strong>Requires Debian or Ubuntu.</strong> The script uses <code>apt-get</code> and <code>systemd</code>. Run it as root or with <code>sudo</code> on the target server.
+    <strong>Native Linux install.</strong> The installer supports <code>apt</code>, <code>dnf</code>/<code>yum</code>, and <code>pacman</code> families on glibc <code>x86_64</code> or <code>aarch64</code>. Run it as root or with <code>sudo</code>. systemd is recommended; a background runtime mode is available for WSL/container-like environments.
   </div>
 
   <h2>What the installer does — automatically</h2>
   <div class="grid-2">
-    <div class="card"><div class="card-title">&#128230; System dependencies</div><div class="card-desc">Installs <code>git</code>, Python tooling, <code>nginx</code>, and a Vite-compatible Node.js 22 runtime.</div></div>
+    <div class="card"><div class="card-title">&#128230; System dependencies</div><div class="card-desc">Installs <code>git</code>, Python tooling, optional <code>nginx</code>, and a checksum-verified Node.js build runtime inside the install tree.</div></div>
     <div class="card"><div class="card-title">&#128100; Dedicated system user</div><div class="card-desc">Creates an <code>ai-agent</code> system user. The app runs under this user, never as root.</div></div>
     <div class="card"><div class="card-title">&#128013; Python backend</div><div class="card-desc">Creates a virtual environment at <code>/opt/ai-agent/backend/venv</code> and installs all pinned Python dependencies.</div></div>
-    <div class="card"><div class="card-title">&#128736; Frontend build</div><div class="card-desc">Runs <code>npm install</code> and <code>npm run build</code> to compile the React app to optimised static files.</div></div>
+    <div class="card"><div class="card-title">&#128736; Frontend build</div><div class="card-desc">Runs <code>npm ci</code> from <code>frontend/package-lock.json</code> and <code>npm run build</code> to compile the React app to optimised static files.</div></div>
     <div class="card"><div class="card-title">&#9881;&#65039; Runtime service</div><div class="card-desc">Uses systemd when available. In containers or WSL-like environments without systemd, starts the backend as a background process and writes logs to <code>/var/log/ai-agent/backend.log</code>.</div></div>
     <div class="card"><div class="card-title">&#127760; Nginx reverse proxy</div><div class="card-desc">Configures Nginx to serve the frontend on port 80 and proxy <code>/api</code> to the backend with SSE support.</div></div>
   </div>
@@ -369,11 +369,14 @@ sudo bash install.sh</code></pre>
   <pre><code># One-line install with defaults
 curl -fsSL https://raw.githubusercontent.com/paoloronco/infra-agent/master/install.sh | sudo bash
 
-# Custom domain and port
-sudo bash install.sh --domain myserver.example.com --backend-port 8000
+# Custom domain, port, and non-interactive run
+sudo bash install.sh --yes --domain myserver.example.com --backend-port 8000
 
 # Skip Nginx (if you have your own reverse proxy)
-sudo bash install.sh --no-nginx --domain myserver.example.com</code></pre>
+sudo bash install.sh --yes --no-nginx --domain myserver.example.com
+
+# Background runtime for systems without running systemd
+sudo bash install.sh --yes --runtime background --backend-port 8000</code></pre>
   <table>
     <tr><th>Flag</th><th>Default</th><th>Description</th></tr>
     <tr><td><code>--yes</code></td><td>&mdash;</td><td>Skip all prompts, use defaults</td></tr>
@@ -381,6 +384,8 @@ sudo bash install.sh --no-nginx --domain myserver.example.com</code></pre>
     <tr><td><code>--backend-port PORT</code></td><td><code>8000</code></td><td>Port the FastAPI backend listens on. If the default is busy, the one-line installer uses the next free port.</td></tr>
     <tr><td><code>--domain NAME</code></td><td>auto-detected IP</td><td>Domain or IP for the Nginx server_name</td></tr>
     <tr><td><code>--no-nginx</code></td><td>&mdash;</td><td>Skip Nginx installation and configuration</td></tr>
+    <tr><td><code>--runtime MODE</code></td><td><code>systemd</code></td><td>Use <code>systemd</code> or <code>background</code></td></tr>
+    <tr><td><code>--ref REF</code></td><td><code>master</code></td><td>Install a specific git branch, tag, or commit</td></tr>
   </table>
 
   <h2>After installation — first setup</h2>
@@ -388,22 +393,13 @@ sudo bash install.sh --no-nginx --domain myserver.example.com</code></pre>
   <div class="step">
     <div class="step-num">1</div>
     <div>
-      <div class="step-title">Get the initial admin password</div>
-      <div class="step-desc"><pre><code>sudo cat /opt/ai-agent/backend/data/bootstrap_admin_password.txt</code></pre>
-      This file is created on first run and contains the random password for the <code>admin</code> account. Delete or secure it after your first login.</div>
+      <div class="step-title">Open the app</div>
+      <div class="step-desc">Navigate to <strong>http://your-server-ip</strong> (or your domain if configured). Authentication is disabled on first boot so you can complete setup without a bootstrap login.</div>
     </div>
   </div>
 
   <div class="step">
     <div class="step-num">2</div>
-    <div>
-      <div class="step-title">Open the app</div>
-      <div class="step-desc">Navigate to <strong>http://your-server-ip</strong> (or your domain if configured). Log in as <code>admin</code> with the password from step 1.</div>
-    </div>
-  </div>
-
-  <div class="step">
-    <div class="step-num">3</div>
     <div>
       <div class="step-title">Add an LLM provider</div>
       <div class="step-desc">Go to <strong>Models</strong> &rarr; find a provider card &rarr; paste your API key &rarr; <strong>Save</strong> &rarr; <strong>Test</strong>. <a href="https://console.groq.com" style="color:#4f46e5">Groq</a> is free and takes 30 seconds to set up.</div>
@@ -411,7 +407,7 @@ sudo bash install.sh --no-nginx --domain myserver.example.com</code></pre>
   </div>
 
   <div class="step">
-    <div class="step-num">4</div>
+    <div class="step-num">3</div>
     <div>
       <div class="step-title">Register a target host</div>
       <div class="step-desc">Go to <strong>SSH Manager</strong> &rarr; <strong>+ Add host</strong> &rarr; choose <em>AI Agent Setup</em> &rarr; run the generated script on the target as root &rarr; click <strong>Test</strong>.</div>
@@ -419,10 +415,18 @@ sudo bash install.sh --no-nginx --domain myserver.example.com</code></pre>
   </div>
 
   <div class="step">
+    <div class="step-num">4</div>
+    <div>
+      <div class="step-title">Start chatting</div>
+      <div class="step-desc">Open <strong>Chat</strong>, select a model and target host, then ask for diagnostics or operations in plain English. Risky operations pause for approval before they run.</div>
+    </div>
+  </div>
+
+  <div class="step">
     <div class="step-num">5</div>
     <div>
       <div class="step-title">Enable authentication</div>
-      <div class="step-desc">Go to <strong>Settings</strong> &rarr; toggle <strong>Authentication ON</strong>. Change the default admin password. Your instance is now secured.</div>
+      <div class="step-desc">Go to <strong>Settings</strong> &rarr; toggle <strong>Authentication ON</strong>. If the first admin account is created automatically, secure or delete <code>/opt/ai-agent/backend/data/bootstrap_admin_password.txt</code> after the first login.</div>
     </div>
   </div>
 
@@ -438,8 +442,12 @@ sudo bash /opt/ai-agent/uninstall.sh --yes
 sudo bash /opt/ai-agent/uninstall.sh --yes --purge-deps  # remove app-owned packages, keep system basics</code></pre>
 
   <div class="callout callout-tip">
-    <strong>Upgrading</strong> is handled entirely by <code>upgrade.sh</code> — it pulls the latest code from git, backs up the SQLite database, upgrades Python deps, rebuilds the frontend, and restarts the service. Zero downtime in most cases.
+    <strong>Upgrading</strong> is handled entirely by <code>upgrade.sh</code> — it pulls the latest code from git, backs up the SQLite database, saves tracked local edits under <code>backend/data/pre-upgrade-local-changes-*</code>, upgrades Python deps, rebuilds the frontend, and restarts the service.
   </div>
+  <p>If an older upgrader stops with <code>Tracked files have local changes</code>, refresh the script once:</p>
+  <pre><code>sudo curl -fsSL https://raw.githubusercontent.com/paoloronco/infra-agent/master/upgrade.sh -o /opt/ai-agent/upgrade.sh
+sudo chmod +x /opt/ai-agent/upgrade.sh
+sudo bash /opt/ai-agent/upgrade.sh</code></pre>
 
   <h2>Local / development install</h2>
   <p>The one-line installer targets production Linux servers. If you want to run the app locally on your laptop with hot reload, see the <strong>Development Setup</strong> page instead.</p>
@@ -498,17 +506,17 @@ pip freeze &gt; requirements.lock   # keep as lockfile reference</code></pre>
   <p>The full reference for every variable is on the <strong>Production Deploy</strong> page. For local development, the only required setting is an API key for at least one LLM provider.</p>
 
   <h3>4. Run with hot reload</h3>
-  <pre><code>uvicorn main:app --host 0.0.0.0 --port 8001 --reload</code></pre>
-  <p>The <code>--reload</code> flag watches for file changes and restarts automatically. The backend API is available at <strong>http://localhost:8001</strong>. FastAPI's interactive docs (Swagger UI) are at <strong>http://localhost:8001/api/swagger</strong>.</p>
+  <pre><code>python main.py</code></pre>
+  <p>The backend API is available at <strong>http://localhost:8001</strong> with the checked-in <code>.env.example</code> defaults, unless <code>API_PORT</code> is changed in <code>.env</code>. FastAPI's interactive docs (Swagger UI) are at <strong>http://localhost:8001/docs</strong> when docs are enabled.</p>
 
   <h2>Frontend setup</h2>
 
   <h3>1. Install dependencies</h3>
   <pre><code>cd app/frontend
-npm install</code></pre>
+npm ci</code></pre>
 
   <h3>2. API proxy</h3>
-  <p>The Vite dev server needs to proxy <code>/api</code>, <code>/systems</code>, <code>/ssh-keys</code> and other backend paths. Check <code>vite.config.js</code> — if a proxy is not configured, the frontend will call the backend directly on port 8001 (make sure <code>CORS_ORIGINS</code> includes <code>http://localhost:5173</code>).</p>
+  <p>The Vite dev server proxies <code>/api</code>, <code>/systems</code>, <code>/ssh-keys</code> and other backend paths to the backend on port <code>8001</code>. If you change the backend port, update <code>vite.config.js</code> and make sure <code>CORS_ORIGINS</code> includes <code>http://localhost:5173</code>.</p>
 
   <h3>3. Start the dev server</h3>
   <pre><code>npm run dev</code></pre>
@@ -540,18 +548,22 @@ python -m pytest test_*.py -v</code></pre>
 <!-- PAGE 3 — PRODUCTION DEPLOY -->
 <div class="page" id="page-3">
   <h1 class="page-title">Production Deployment</h1>
-  <p class="page-sub">Nginx reverse proxy, systemd service, PostgreSQL, and environment hardening.</p>
+  <p class="page-sub">Native installer defaults, Nginx reverse proxy, systemd service, PostgreSQL, and environment hardening.</p>
 
   <h2>System requirements</h2>
   <table>
     <tr><th>Component</th><th>Minimum</th><th>Recommended</th></tr>
-    <tr><td>OS</td><td>Ubuntu 22.04 / Debian 12</td><td>Ubuntu 24.04 LTS</td></tr>
+    <tr><td>OS</td><td>glibc Linux with <code>apt</code>, <code>dnf</code>/<code>yum</code>, or <code>pacman</code></td><td>Ubuntu 24.04 LTS / Debian 12 / RHEL-family / Arch-family</td></tr>
     <tr><td>RAM</td><td>1 GB</td><td>2 GB+</td></tr>
     <tr><td>CPU</td><td>1 vCPU</td><td>2 vCPU</td></tr>
     <tr><td>Disk</td><td>5 GB</td><td>20 GB (logs, attachments)</td></tr>
     <tr><td>Python</td><td>3.10</td><td>3.12</td></tr>
-    <tr><td>Node.js</td><td>20.19+</td><td>22.12+ / 22 LTS</td></tr>
+    <tr><td>Node.js</td><td>Installer-managed build runtime</td><td>No machine-wide Node.js mutation required</td></tr>
   </table>
+
+  <div class="callout callout-tip">
+    <strong>Recommended path:</strong> use <code>install.sh</code> for production. The manual snippets below mirror the generated paths and service names for operators who need to inspect or customize the deployment.
+  </div>
 
   <h2>PostgreSQL setup</h2>
   <pre><code>sudo apt install postgresql postgresql-contrib
@@ -561,34 +573,39 @@ sudo -u postgres psql -c "CREATE DATABASE aiagentdb OWNER aiagent;"</code></pre>
   <pre><code>DATABASE_URL=postgresql+psycopg://aiagent:strongpassword@localhost:5432/aiagentdb</code></pre>
 
   <h2>Backend as a systemd service</h2>
-  <pre><code>sudo nano /etc/systemd/system/aiagent-backend.service</code></pre>
+  <pre><code>sudo nano /etc/systemd/system/ai-agent.service</code></pre>
   <div class="cfg-block"><code>[Unit]
-Description=AI Agent SSH Backend
-After=network.target postgresql.service
+Description=AI Agent SSH &amp; Troubleshooting Backend
+After=network.target
 
 [Service]
-Type=simple
-User=www-data
-WorkingDirectory=/opt/infra-agent/app/backend
-Environment=PATH=/opt/infra-agent/app/backend/venv/bin
-ExecStart=/opt/infra-agent/app/backend/venv/bin/uvicorn \
-          main:app --host 127.0.0.1 --port 8001 --workers 2
+User=ai-agent
+Group=ai-agent
+WorkingDirectory=/opt/ai-agent/backend
+EnvironmentFile=/opt/ai-agent/backend/.env
+ExecStart=/opt/ai-agent/backend/venv/bin/python main.py
 Restart=always
 RestartSec=5
-StandardOutput=journal
-StandardError=journal
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/ai-agent/backend/data
+LockPersonality=true
+RestrictSUIDSGID=true
 
 [Install]
 WantedBy=multi-user.target</code></div>
   <pre><code>sudo systemctl daemon-reload
-sudo systemctl enable --now aiagent-backend
-sudo systemctl status aiagent-backend</code></pre>
+sudo systemctl enable --now ai-agent
+sudo systemctl status ai-agent</code></pre>
 
   <h2>Build the frontend</h2>
-  <pre><code>cd app/frontend
-npm install --production
+  <pre><code>cd /opt/ai-agent/frontend
+npm ci
 npm run build
-# Output is in app/frontend/dist/</code></pre>
+# Output is in /opt/ai-agent/frontend/dist/</code></pre>
 
   <h2>Nginx configuration</h2>
   <pre><code>sudo nano /etc/nginx/sites-available/aiagent</code></pre>
@@ -600,7 +617,7 @@ npm run build
     ssl_certificate_key /etc/letsencrypt/live/yourdomain.example.com/privkey.pem;
 
     # Frontend static files
-    root /opt/infra-agent/app/frontend/dist;
+    root /opt/ai-agent/frontend/dist;
     index index.html;
 
     # SPA fallback
@@ -610,7 +627,7 @@ npm run build
 
     # Backend API
     location /api/ {
-        proxy_pass         http://127.0.0.1:8001;
+        proxy_pass         http://127.0.0.1:8000;
         proxy_http_version 1.1;
         proxy_set_header   Host $host;
         proxy_set_header   X-Real-IP $remote_addr;
@@ -621,7 +638,7 @@ npm run build
 
     # SSE — disable buffering so tokens stream immediately
     location /api/chats/ {
-        proxy_pass         http://127.0.0.1:8001;
+        proxy_pass         http://127.0.0.1:8000;
         proxy_buffering    off;
         proxy_cache        off;
         proxy_read_timeout 300s;
@@ -630,8 +647,13 @@ npm run build
     }
 
     # Other backend paths
-    location ~ ^/(systems|ssh-keys|ssh-key|ssh-test|ssh-setup) {
-        proxy_pass http://127.0.0.1:8001;
+    location ~ ^/(troubleshoot|ssh-keys|ssh-key|ssh-test|systems|health|info) {
+        proxy_pass http://127.0.0.1:8000;
+        proxy_set_header Host $host;
+    }
+
+    location /ssh-setup/ {
+        proxy_pass http://127.0.0.1:8000;
         proxy_set_header Host $host;
     }
 }</code></div>
@@ -653,18 +675,18 @@ sudo nginx -t &amp;&amp; sudo systemctl reload nginx</code></pre>
   <h2>Security checklist</h2>
   <ul>
     <li>&#9989; Enable authentication (<strong>Settings &rarr; Authentication</strong>)</li>
-    <li>&#9989; Change the default <code>admin</code> password after first login</li>
+    <li>&#9989; Secure or delete <code>backend/data/bootstrap_admin_password.txt</code> after the first admin login if bootstrap auth is used</li>
     <li>&#9989; Set <code>CORS_ORIGINS</code> to your exact domain (no wildcards)</li>
     <li>&#9989; Enable <code>STRICT_SSH_HOST_KEY_CHECKING=true</code></li>
     <li>&#9989; Use PostgreSQL instead of SQLite</li>
-    <li>&#9989; Run backend as a non-root system user (<code>www-data</code> or dedicated)</li>
-    <li>&#9989; Back up <code>data/secret_key.txt</code> and <code>data/ssh_keys/</code> — these are irreplaceable</li>
+    <li>&#9989; Run backend as the dedicated non-root <code>ai-agent</code> system user</li>
+    <li>&#9989; Back up <code>backend/data/secret_key.txt</code> and <code>backend/data/ssh_keys/</code> — these are irreplaceable</li>
     <li>&#9989; Configure firewall: only ports 80 and 443 should be publicly accessible</li>
     <li>&#9989; Set up HTTPS with Let's Encrypt (<code>certbot --nginx</code>)</li>
   </ul>
 
   <div class="callout callout-danger">
-    <strong>Never expose port 8001 directly to the internet.</strong> The backend must sit behind Nginx (or another reverse proxy) so that authentication middleware, HTTPS, and rate limiting are enforced at the network boundary.
+    <strong>Never expose the backend port directly to the internet.</strong> By default it is <code>8000</code> and must sit behind Nginx (or another reverse proxy) so HTTPS, static assets, SSE streaming, and access controls stay consistent.
   </div>
 </div>
 
@@ -786,7 +808,7 @@ sudo nginx -t &amp;&amp; sudo systemctl reload nginx</code></pre>
     <li>The target system name and IP</li>
     <li>The risk classification and reason (e.g. <em>"service restart"</em>, <em>"file write"</em>)</li>
   </ul>
-  <p>Click <strong>Approve</strong> to let the agent proceed, or <strong>Deny</strong> to reject it. On denial, the agent receives the rejection and can propose an alternative approach or explain why the action is needed.</p>
+  <p>The card exposes three actions: <strong>Approve</strong>, <strong>Deny</strong>, and <strong>Other</strong>. Approve executes the exact pending command and lets the agent continue with the real SSH output. Deny cancels the action. Other sends revised instructions back to the runtime so the agent can choose a safer path or request a new approval.</p>
 
   <h2>Context window &amp; memory</h2>
   <p>Long conversations are automatically compressed to stay within the model's context window. The compressor summarises older messages and keeps the most recent exchanges intact. The agent also maintains two memory layers:</p>
@@ -1150,7 +1172,7 @@ Common examples:
     <tr><td><span class="badge badge-red">Strict</span></td><td>Read-only diagnostics: <code>ps</code>, <code>df</code>, <code>free</code>, <code>journalctl</code>, <code>systemctl status</code></td><td>Anything that modifies state</td></tr>
     <tr><td><span class="badge badge-orange">Balanced</span></td><td>Diagnostics + safe service restarts and log reads</td><td>Network changes, file writes, package operations</td></tr>
     <tr><td><span class="badge badge-blue">Operator</span></td><td>Full service lifecycle, log access, network diagnostics</td><td>Destructive operations (delete, format, wipe)</td></tr>
-    <tr><td><span class="badge badge-green">Full Access</span></td><td>All operations</td><td>Nothing (bypasses approval flow)</td></tr>
+    <tr><td><span class="badge badge-green">Full Access</span></td><td>Lowest-friction operations</td><td>Forbidden patterns are still blocked; risky commands can still require runtime approval</td></tr>
   </table>
 
   <h2>Command allow &amp; block lists</h2>
@@ -1164,9 +1186,9 @@ Common examples:
   <p>Every <code>ssh_run_command</code> call passes through <code>tools/validator.py</code> before execution:</p>
   <ol>
     <li><strong>Forbidden patterns</strong> &mdash; immediate block (e.g. <code>rm -rf /</code>, <code>:(){:|:&amp;};:</code>, <code>mkfs</code>)</li>
-    <li><strong>Blocked commands list</strong> &mdash; your custom block rules</li>
+    <li><strong>Blocked commands list</strong> &mdash; server-side block rules configured for the deployment</li>
     <li><strong>Risk classifier</strong> &mdash; assigns <em>critical</em>, <em>high</em>, <em>medium</em>, or <em>low</em> risk</li>
-    <li><strong>Approval gate</strong> &mdash; if the risk level requires approval (based on preset), execution is suspended until the user acts</li>
+    <li><strong>Approval gate</strong> &mdash; high-risk and critical commands are suspended until the user acts in the chat approval card</li>
     <li><strong>Execution</strong> &mdash; command is sent via Paramiko if all checks pass</li>
   </ol>
 </div>
@@ -1186,7 +1208,7 @@ Common examples:
   <p>Toggle <strong>Light / Dark</strong> from the Settings page or the sidebar. Preference is stored in <code>localStorage</code> and applied on load.</p>
 
   <h2>Authentication</h2>
-  <p>The <strong>Authentication</strong> card shows the current state (enabled / disabled) with a toggle. Changing this state is logged as a <code>WARNING</code> event.</p>
+  <p>The <strong>Authentication</strong> card shows the current state (enabled / disabled) with a toggle. Authentication is disabled on first boot; enable it after configuring models and SSH hosts. Changing this state is logged as a <code>WARNING</code> event.</p>
   <table>
     <tr><th>Setting</th><th>Default</th><th>Description</th></tr>
     <tr><td>Session timeout</td><td>24 h</td><td>JWT token lifetime. Users must re-login after expiry.</td></tr>
@@ -1206,7 +1228,7 @@ Common examples:
   </table>
 
   <div class="callout callout-info">
-    <strong>Admin bootstrap:</strong> the <code>admin</code> user is created on first run with a random password written to <code>data/bootstrap_admin_password.txt</code>. To pre-configure the password before first run, set <code>AI_AGENT_ADMIN_PASSWORD</code> in <code>.env</code>. Delete or secure the bootstrap file after first login.
+    <strong>Admin bootstrap:</strong> when authentication is enabled and no users exist, the <code>admin</code> user is created with a random password written to <code>backend/data/bootstrap_admin_password.txt</code>. To pre-configure the password before first run, set <code>AI_AGENT_ADMIN_PASSWORD</code> in <code>.env</code>. Delete or secure the bootstrap file after first login.
   </div>
 
   <h2>Token usage</h2>
@@ -1226,10 +1248,15 @@ Common examples:
   <table>
     <tr><th>Endpoint</th><th>Method</th><th>Body / Params</th><th>Returns</th></tr>
     <tr><td><code>/api/auth/config</code></td><td>GET</td><td>&mdash;</td><td><code>{enabled: bool}</code> &mdash; public</td></tr>
+    <tr><td><code>/api/auth/config</code></td><td>PUT</td><td><code>{enabled, session_timeout?, max_failed_attempts?, lockout_duration?}</code></td><td>Updated auth config</td></tr>
     <tr><td><code>/api/auth/login</code></td><td>POST</td><td><code>{username, password}</code></td><td><code>{access_token, token_type}</code> &mdash; public</td></tr>
+    <tr><td><code>/api/auth/status</code></td><td>GET</td><td>&mdash;</td><td>Authentication state &mdash; public</td></tr>
+    <tr><td><code>/api/auth/me</code></td><td>GET</td><td>&mdash;</td><td>Current user</td></tr>
+    <tr><td><code>/api/auth/change-password</code></td><td>POST</td><td><code>{old_password, new_password}</code></td><td>Password changed</td></tr>
     <tr><td><code>/api/auth/users</code></td><td>GET</td><td>&mdash;</td><td>List of user objects (admin only)</td></tr>
     <tr><td><code>/api/auth/users</code></td><td>POST</td><td><code>{username, password, is_admin}</code></td><td>Created user (admin only)</td></tr>
-    <tr><td><code>/api/auth/users/{username}</code></td><td>PATCH</td><td><code>{password?, is_admin?, is_active?}</code></td><td>Updated user</td></tr>
+    <tr><td><code>/api/auth/users/{username}</code></td><td>PUT</td><td><code>{password?, is_admin?, is_active?}</code></td><td>Updated user</td></tr>
+    <tr><td><code>/api/auth/reset-password/{username}</code></td><td>POST</td><td>&mdash;</td><td>Random temporary password (admin only)</td></tr>
     <tr><td><code>/api/auth/users/{username}</code></td><td>DELETE</td><td>&mdash;</td><td>204 No Content</td></tr>
   </table>
 
@@ -1237,12 +1264,12 @@ Common examples:
   <table>
     <tr><th>Endpoint</th><th>Method</th><th>Notes</th></tr>
     <tr><td><code>/api/chats</code></td><td>GET</td><td>List all chats, sorted by updated_at desc</td></tr>
-    <tr><td><code>/api/chats</code></td><td>POST</td><td>Create chat <code>{title?, model?, target_host?}</code></td></tr>
+    <tr><td><code>/api/chats</code></td><td>POST</td><td>Create chat <code>{title?, model?, target_host_id?, target_host?}</code></td></tr>
     <tr><td><code>/api/chats/{id}</code></td><td>GET</td><td>Get chat with all messages</td></tr>
     <tr><td><code>/api/chats/{id}</code></td><td>PATCH</td><td>Update title, model, or target host</td></tr>
     <tr><td><code>/api/chats/{id}</code></td><td>DELETE</td><td>Delete chat and all messages</td></tr>
     <tr><td><code>/api/chats/{id}/messages</code></td><td>POST</td><td>Send message — returns SSE stream (<code>text/event-stream</code>)</td></tr>
-    <tr><td><code>/api/chats/{id}/approvals/{aid}</code></td><td>POST</td><td>Resolve approval <code>{action: "approve"|"deny"}</code></td></tr>
+    <tr><td><code>/api/chats/{id}/approvals/{aid}</code></td><td>POST</td><td>Resolve approval <code>{decision: "approve"|"deny"|"other", instructions?}</code></td></tr>
     <tr><td><code>/api/chats/models/available</code></td><td>GET</td><td>Models available in the current provider config</td></tr>
   </table>
 
@@ -1252,11 +1279,12 @@ Common examples:
     <tr><td><code>/api/models/providers</code></td><td>GET</td><td>All provider configs (keys masked)</td></tr>
     <tr><td><code>/api/models/providers/{id}</code></td><td>PUT</td><td>Save API key <code>{api_key, enabled}</code></td></tr>
     <tr><td><code>/api/models/providers/{id}/test</code></td><td>POST</td><td>Test provider connectivity</td></tr>
-    <tr><td><code>/systems</code></td><td>GET / POST</td><td>List / create SSH host records</td></tr>
-    <tr><td><code>/systems/{id}</code></td><td>PATCH / DELETE</td><td>Update or remove a host</td></tr>
+    <tr><td><code>/systems</code></td><td>GET / POST</td><td>List / create or update SSH host records</td></tr>
+    <tr><td><code>/systems/{id}</code></td><td>DELETE</td><td>Remove a host</td></tr>
+    <tr><td><code>/systems/reorder</code></td><td>POST</td><td>Persist host hierarchy ordering</td></tr>
     <tr><td><code>/ssh-keys</code></td><td>GET</td><td>List SSH keys</td></tr>
     <tr><td><code>/ssh-key</code></td><td>POST</td><td>Generate new key <code>{name, system_id?}</code></td></tr>
-    <tr><td><code>/ssh-key/{id}</code></td><td>DELETE</td><td>Delete a key</td></tr>
+    <tr><td><code>/ssh-key/{id}</code></td><td>GET / DELETE</td><td>Get or delete a key</td></tr>
     <tr><td><code>/ssh-test</code></td><td>POST</td><td>Test connection <code>{host, port, username, key_id?, password?}</code></td></tr>
   </table>
 
@@ -1264,6 +1292,7 @@ Common examples:
   <table>
     <tr><th>Endpoint</th><th>Method</th><th>Notes</th></tr>
     <tr><td><code>/api/logs</code></td><td>GET</td><td>Paginated logs; params: <code>page</code>, <code>page_size</code>, <code>level</code>, <code>category</code>, <code>search</code>, <code>start_time</code>, <code>end_time</code></td></tr>
+    <tr><td><code>/api/logs</code></td><td>POST</td><td>Create an application log entry</td></tr>
     <tr><td><code>/api/logs</code></td><td>DELETE</td><td>Clear all logs</td></tr>
     <tr><td><code>/api/logs/stats</code></td><td>GET</td><td>Aggregate counts by level and category</td></tr>
     <tr><td><code>/api/logs/export</code></td><td>GET</td><td>Download filtered logs as plain text</td></tr>
@@ -1274,6 +1303,7 @@ Common examples:
     <tr><td><code>/api/backup/import</code></td><td>POST (multipart)</td><td>Import backup file <code>file + password?</code></td></tr>
     <tr><td><code>/api/backup/import/preview</code></td><td>POST (multipart)</td><td>Preview backup contents without importing</td></tr>
     <tr><td><code>/api/usage/summary</code></td><td>GET</td><td>Total tokens per model</td></tr>
+    <tr><td><code>/api/usage/by-model</code></td><td>GET</td><td>Token usage grouped by model</td></tr>
     <tr><td><code>/api/usage/daily</code></td><td>GET</td><td>Daily token counts, param: <code>days</code> (default 14)</td></tr>
     <tr><td><code>/health</code></td><td>GET</td><td><code>{status, version}</code> &mdash; public, no auth</td></tr>
   </table>

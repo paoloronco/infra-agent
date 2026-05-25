@@ -339,6 +339,20 @@ sudo bash /opt/ai-agent/upgrade.sh
 
 The upgrader pulls from `origin/master`, updates backend dependencies, rebuilds
 the frontend, restarts the service, and prints recent logs if startup fails.
+If tracked runtime files were changed locally, the upgrader stores a safety copy
+under `backend/data/pre-upgrade-local-changes-*` before resetting the checkout.
+Local changes to `backend/agent_config.json` and `backend/agent_memory.md` are
+restored after the upgrade because those files can contain instance-specific
+state.
+
+If an older installed upgrader stops with `Tracked files have local changes`,
+refresh the script first:
+
+```bash
+sudo curl -fsSL https://raw.githubusercontent.com/paoloronco/infra-agent/master/upgrade.sh -o /opt/ai-agent/upgrade.sh
+sudo chmod +x /opt/ai-agent/upgrade.sh
+sudo bash /opt/ai-agent/upgrade.sh
+```
 
 Useful service commands:
 
@@ -468,6 +482,18 @@ Frontend is stale after upgrade:
 sudo systemctl restart ai-agent
 sudo systemctl reload nginx
 ```
+
+Upgrade stops with `Tracked files have local changes`:
+
+```bash
+sudo curl -fsSL https://raw.githubusercontent.com/paoloronco/infra-agent/master/upgrade.sh -o /opt/ai-agent/upgrade.sh
+sudo chmod +x /opt/ai-agent/upgrade.sh
+sudo bash /opt/ai-agent/upgrade.sh
+```
+
+The refreshed upgrader saves local tracked edits to
+`/opt/ai-agent/backend/data/pre-upgrade-local-changes-*` before it resets the
+checkout and continues.
 
 No API key configured:
 
