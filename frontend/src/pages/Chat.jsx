@@ -157,32 +157,86 @@ function MsgAttachmentChip({ att }) {
 }
 
 // ── Message bubble ────────────────────────────────────────────────────────────
+const PENDING_APPROVAL_STATUSES = new Set([
+  'pending',
+  'approval_required',
+  'pending_approval',
+  'waiting_approval',
+  'waiting_for_approval',
+])
+
+function normalizeApproval(approval) {
+  if (!approval || typeof approval !== 'object') return null
+  const status = String(approval.status || approval.state || '').trim().toLowerCase()
+  const normalizedStatus = PENDING_APPROVAL_STATUSES.has(status || 'pending') ? 'pending' : status
+  const id = approval.id || approval.approval_id || approval.approvalId
+  const assistantMessageId = approval.assistant_message_id ?? approval.assistantMessageId ?? approval.message_id ?? approval.messageId
+  return {
+    ...approval,
+    id,
+    assistant_message_id: assistantMessageId,
+    action_type: approval.action_type || approval.actionType || approval.type || 'ssh_command',
+    system_name: approval.system_name || approval.systemName || approval.host || approval.target_host,
+    command: approval.command || approval.action || approval.proposed_command || approval.proposedCommand || '',
+    risk_level: approval.risk_level || approval.riskLevel || 'high',
+    reason: approval.reason || approval.message || 'This action can change system state.',
+    status: normalizedStatus || 'pending',
+  }
+}
+
+function extractPendingApproval(payload) {
+  if (!payload || typeof payload !== 'object') return null
+  const approval = normalizeApproval(
+    payload.pending_approval ||
+    payload.pendingApproval ||
+    payload.approval_required ||
+    payload.approvalRequired ||
+    payload.approval
+  )
+  return approval?.status === 'pending' ? approval : null
+}
+
 function attachPendingApproval(messages, pendingApproval) {
   const normalizedApproval = normalizeApproval(pendingApproval)
   if (!normalizedApproval?.id) return messages || []
   const msgs = messages || []
-  let attached = false
-  const next = msgs.map(msg => {
-    if (String(msg.id) === String(normalizedApproval.assistant_message_id)) {
-      attached = true
-      return { ...msg, approval: normalizeApproval(msg.approval) || normalizedApproval }
-    }
-    return msg
-  })
-  return attached ? next : msgs
-}
+  if (msgs.length === 0) return msgs
 
-function normalizeApproval(approval) {
-  if (!approval || typeof approval !== 'object') return null
-  const status = String(approval.status || '').trim().toLowerCase()
-  const normalizedStatus = ['pending', 'approval_required', 'pending_approval', 'waiting_approval'].includes(status)
-    ? 'pending'
-    : status
-  return { ...approval, status: normalizedStatus || 'pending' }
+  let targetIndex = msgs.findIndex(msg => String(msg.id) === String(normalizedApproval.assistant_message_id))
+  if (targetIndex < 0) {
+    targetIndex = msgs.findIndex(msg => String(msg.approval?.id || '') === String(normalizedApproval.id))
+  }
+  if (targetIndex < 0) {
+    targetIndex = msgs.findIndex(msg => !['user', 'system'].includes(msg.role) && PENDING_APPROVAL_STATUSES.has(String(msg.status || '').toLowerCase()))
+  }
+  if (targetIndex < 0) {
+    for (let i = msgs.length - 1; i >= 0; i -= 1) {
+      if (msgs[i].role !== 'user') {
+        targetIndex = i
+        break
+      }
+    }
+  }
+  if (targetIndex < 0) return msgs
+
+  return msgs.map((msg, index) => {
+    if (index !== targetIndex) return msg
+    return {
+      ...msg,
+      approval: {
+        ...(normalizeApproval(msg.approval) || {}),
+        ...normalizedApproval,
+      },
+    }
+  })
 }
 
 function isApprovalPending(approval) {
   return normalizeApproval(approval)?.status === 'pending'
+}
+
+function isRunActive(run) {
+  return ['pending', 'running'].includes(String(run?.status || '').toLowerCase())
 }
 
 function ApprovalCard({ approval, busy, onResolve, showCommand = false }) {
@@ -208,7 +262,10 @@ function ApprovalCard({ approval, busy, onResolve, showCommand = false }) {
   }
 
   return (
-    <div className="mt-3 rounded-lg border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/30 p-3 text-sm">
+    <div
+      data-testid="approval-card"
+      className="relative z-30 mt-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm shadow-lg shadow-amber-950/10 dark:border-amber-700 dark:bg-amber-950/40"
+    >
       <div className="flex items-start gap-2">
         <ShieldAlert size={18} className="text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
         <div className="min-w-0 flex-1">
@@ -232,14 +289,17 @@ function ApprovalCard({ approval, busy, onResolve, showCommand = false }) {
 
       <div className="mt-3 flex flex-wrap gap-2">
         <button type="button" disabled={busy} onClick={() => onResolve(pendingApproval, 'approve')}
+          data-testid="approval-approve"
           className="px-3 py-1.5 rounded-md bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white text-xs font-medium">
           APPROVE
         </button>
         <button type="button" disabled={busy} onClick={() => onResolve(pendingApproval, 'deny')}
+          data-testid="approval-deny"
           className="px-3 py-1.5 rounded-md bg-red-600 hover:bg-red-500 disabled:opacity-40 text-white text-xs font-medium">
           DENY
         </button>
         <button type="button" disabled={busy} onClick={openOther}
+          data-testid="approval-other"
           className="px-3 py-2 rounded-md bg-gray-800 hover:bg-gray-700 disabled:opacity-40 text-white text-xs font-medium">
           OTHER
         </button>
@@ -262,6 +322,23 @@ function ApprovalCard({ approval, busy, onResolve, showCommand = false }) {
           </button>
         </div>
       )}
+    </div>
+  )
+}
+
+function ApprovalDock({ approval, busy, onResolve }) {
+  const pendingApproval = normalizeApproval(approval)
+  if (!isApprovalPending(pendingApproval)) return null
+  return (
+    <div className="relative z-30 border-t border-amber-200 bg-white/95 px-3 pb-2 pt-1 backdrop-blur dark:border-amber-900/60 dark:bg-gray-900/95">
+      <div className="mx-auto max-w-4xl">
+        <ApprovalCard
+          approval={pendingApproval}
+          busy={busy === pendingApproval.id}
+          onResolve={onResolve}
+          showCommand
+        />
+      </div>
     </div>
   )
 }
@@ -592,11 +669,11 @@ export default function Chat() {
           stopPolling()
           return
         }
-        const pending = updated.pending_approval || null
+        const pending = extractPendingApproval(updated)
         const updatedMsgs = attachPendingApproval(updated.messages || [], pending)
         setRuntimePendingApproval(pending)
         setMessages(updatedMsgs)
-        const stillPending = updatedMsgs.some(m => m.status === 'pending' || m.status === 'streaming')
+        const stillPending = updatedMsgs.some(m => m.status === 'pending' || m.status === 'streaming') || isRunActive(updated.active_run)
         if (!stillPending) {
           stopPolling()
           loadChats()
@@ -651,7 +728,7 @@ export default function Chat() {
       // Guard: user may have switched again before this resolved
       if (activeChatIdRef.current !== activeChatId || chatLoadSeqRef.current !== loadSeq) return
 
-      const pending = chat.pending_approval || null
+      const pending = extractPendingApproval(chat)
       const msgs = attachPendingApproval(chat.messages || [], pending)
       setRuntimePendingApproval(pending)
       setMessages(msgs)
@@ -677,7 +754,7 @@ export default function Chat() {
       // Recovery: if this chat has a pending/streaming message from a previous session
       // (e.g. user switched away, refreshed, or the SSE was interrupted),
       // poll the DB every second until all pending messages resolve.
-      const hasPending = msgs.some(m => m.status === 'pending' || m.status === 'streaming')
+      const hasPending = msgs.some(m => m.status === 'pending' || m.status === 'streaming') || isRunActive(chat.active_run)
       if (hasPending) {
         startPollingForChat(activeChatId)
       }
@@ -764,11 +841,11 @@ export default function Chat() {
     setApprovalBusy(approval.id)
     try {
       const updated = await resolveApproval(activeChatId, approval.id, { decision, instructions })
-      const pending = updated.pending_approval || null
+      const pending = extractPendingApproval(updated)
       const updatedMsgs = attachPendingApproval(updated.messages || [], pending)
       setRuntimePendingApproval(pending)
       setMessages(updatedMsgs)
-      if (updatedMsgs.some(m => m.status === 'pending' || m.status === 'streaming')) {
+      if (updatedMsgs.some(m => m.status === 'pending' || m.status === 'streaming') || isRunActive(updated.active_run)) {
         startPollingForChat(activeChatId)
       }
       loadChats()
@@ -782,7 +859,7 @@ export default function Chat() {
   }
 
   const handleSend = async () => {
-    const pendingApproval = messages.find(m => isApprovalPending(m.approval))?.approval || runtimePendingApproval
+    const pendingApproval = messages.find(m => isApprovalPending(m.approval))?.approval || normalizeApproval(runtimePendingApproval)
     if (pendingApproval) {
       toast.error('Resolve the pending approval before sending another message')
       return
@@ -907,16 +984,21 @@ export default function Chat() {
                 loadChats()
               }
 
-              if (data.approval_required) {
-                setRuntimePendingApproval(data.approval_required)
+              const streamApproval = extractPendingApproval(data)
+              if (streamApproval) {
+                const approval = normalizeApproval({
+                  ...streamApproval,
+                  assistant_message_id: streamApproval.assistant_message_id ?? data.message_id,
+                })
+                setRuntimePendingApproval(approval)
                 setMessages(prev => prev.map(m =>
-                  m.id === tempAssistantId
+                  m.id === tempAssistantId || String(m.id) === String(data.message_id)
                     ? {
                         ...m,
                         id: data.message_id,
                         status: 'approval_required',
                         content: data.content || 'Approval required before running this action.',
-                        approval: data.approval_required,
+                        approval,
                       }
                     : m
                 ))
@@ -1145,6 +1227,12 @@ export default function Chat() {
           )}
           <div ref={bottomRef} className="h-4" />
         </div>
+
+        <ApprovalDock
+          approval={pendingApproval}
+          busy={approvalBusy}
+          onResolve={handleResolveApproval}
+        />
 
         {/* ── Input ── */}
         <div

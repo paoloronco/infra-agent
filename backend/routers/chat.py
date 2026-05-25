@@ -1186,7 +1186,10 @@ async def resolve_approval(
             )
 
         active_run = _active_run_for_chat(db, chat_id)
-        if active_run:
+        active_run_belongs_to_approval = bool(
+            active_run and approval.run_id and active_run.id == approval.run_id
+        )
+        if active_run and not active_run_belongs_to_approval:
             raise HTTPException(
                 status_code=409,
                 detail={
