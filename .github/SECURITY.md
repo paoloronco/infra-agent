@@ -19,7 +19,7 @@ Older installs should be upgraded using `upgrade.sh` or `docker compose pull`.
 Use one of the following private channels:
 
 - **GitHub private advisory (preferred):** [github.com/paoloronco/infra-agent/security/advisories/new](https://github.com/paoloronco/infra-agent/security/advisories/new)
-- **Email:** paolo.ronco2000@gmail.com — subject line: `[infra-agent] Security Report`
+- **Email:** info@paoloronco.it — subject line: `[infra-agent] Security Report`
 
 Include as much detail as possible:
 - A clear description of the vulnerability and its impact
