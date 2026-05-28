@@ -11,6 +11,9 @@ before they are executed.
 ![React](https://img.shields.io/badge/React-18-61DAFB?style=flat&logo=react)
 ![LangGraph](https://img.shields.io/badge/LangGraph-1.x-FF6B6B?style=flat)
 ![License](https://img.shields.io/badge/license-MIT-blue?style=flat)
+[![Documentation](https://img.shields.io/badge/docs-paoloronco.github.io-818cf8?style=flat&logo=gitbook&logoColor=white)](https://paoloronco.github.io/infra-agent/)
+
+**[📖 Full documentation → paoloronco.github.io/infra-agent](https://paoloronco.github.io/infra-agent/)**
 
 ## What You Get
 
