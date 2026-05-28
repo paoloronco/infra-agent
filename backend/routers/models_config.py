@@ -265,4 +265,4 @@ def test_provider(provider_id: str, db: Session = Depends(get_db)):
             model=cfg.model_name if cfg else None,
             details={"error": str(e)},
         )
-        return {"success": False, "message": str(e)}
+        return {"success": False, "message": "Provider test failed. Check the application logs for details."}

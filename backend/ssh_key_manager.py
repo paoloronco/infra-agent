@@ -29,7 +29,10 @@ def _ensure_keys_dir() -> None:
 
 def _detect_private_key_format(path: str) -> str:
     try:
-        text = Path(path).read_text(encoding="utf-8", errors="replace")
+        resolved = Path(path).resolve()
+        if not resolved.is_relative_to(KEYS_DIR.resolve()):
+            return "missing"
+        text = resolved.read_text(encoding="utf-8", errors="replace")
     except Exception:
         return "missing"
     if "BEGIN OPENSSH PRIVATE KEY" in text:

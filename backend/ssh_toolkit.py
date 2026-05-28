@@ -12,7 +12,7 @@ import paramiko
 
 from config import settings
 from routers.logs import add_log
-from ssh_key_manager import validate_private_key_file
+from ssh_key_manager import KEYS_DIR as _KEYS_DIR, validate_private_key_file
 from tools.validator import redact_secrets, validate_command, validate_remote_host, validate_service_name, validate_system_log_source
 
 logger = logging.getLogger(__name__)
@@ -113,7 +113,18 @@ class SSHToolkit:
                 client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
             if key_path:
-                key_file = Path(key_path)
+                key_file = Path(key_path).resolve()
+                if not key_file.is_relative_to(_KEYS_DIR.resolve()):
+                    message = "SSH key path is outside the allowed directory"
+                    self._log_event(
+                        level="ERROR",
+                        event_type="connect_key_invalid",
+                        message=message,
+                        host=host,
+                        username=username,
+                        details={"key_path": key_path},
+                    )
+                    return {"success": False, "message": message}
                 if not key_file.exists():
                     message = f"SSH private key not found: {key_path}"
                     self._log_event(

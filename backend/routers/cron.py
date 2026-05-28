@@ -199,4 +199,4 @@ async def run_job_now(job_id: int, db: Session = Depends(get_db)):
             message=f"Cron job failed: {job.name}", source="routers.cron",
             details={"job_id": job_id, "error": str(e)},
         )
-        return {"success": False, "error": str(e)}
+        return {"success": False, "error": "Cron job execution failed. Check the application logs for details."}

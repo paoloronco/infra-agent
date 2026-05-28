@@ -70,7 +70,11 @@ class SSHToolkit:
                 return {"success": False, "message": message}
 
             client = paramiko.SSHClient()
-            client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+            client.load_system_host_keys()
+            if settings.strict_ssh_host_key_checking:
+                client.set_missing_host_key_policy(paramiko.RejectPolicy())
+            else:
+                client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
             if key_path:
                 client.connect(
