@@ -1,0 +1,28 @@
+services:
+  infra-agent:
+    image: paoloronco/infra-agent:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8080:80"
+    volumes:
+      - infra-agent-data:/app/backend/data
+    environment:
+      # Adjust to the URL you use to reach the container (used for CORS)
+      CORS_ORIGINS: "http://localhost:8080"
+      DATABASE_URL: "sqlite:///data/app.db"
+    # Optionally load a .env file — safe to omit if env vars are set above
+    env_file:
+      - path: ./backend/.env
+        required: false
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+volumes:
+  infra-agent-data:
