@@ -22,6 +22,7 @@ before they are executed.
 - Model provider management from the UI.
 - Backup and restore for app data.
 - Systemd and Nginx production install script.
+- Docker image and Compose file for container-based installs.
 
 ---
 
@@ -89,6 +90,46 @@ Delete /root/test1.txt.
 
 The delete request should not run immediately. The chat must show the proposed
 command and an approval card with **Approve**, **Deny**, and **Other**.
+
+### Docker
+
+The simplest way to run Infra Agent without installing system packages. Requires [Docker](https://docs.docker.com/get-docker/) and Docker Compose.
+
+```bash
+git clone https://github.com/paoloronco/infra-agent.git
+cd infra-agent/app
+docker compose up -d
+```
+
+Or pull and run the published image directly without cloning:
+
+```bash
+docker run -d \
+  -p 8080:80 \
+  -v infra-agent-data:/app/backend/data \
+  -e CORS_ORIGINS="http://localhost:8080" \
+  --name infra-agent \
+  --restart unless-stopped \
+  paueron/infra-agent:latest
+```
+
+Open **http://localhost:8080**, go to **Models** to add an LLM provider key, then **SSH Manager** to register a host. No `.env` file or environment variables are required — everything is configured from the UI.
+
+Data (SQLite database, SSH keys) is stored in the `infra-agent-data` named volume and survives container restarts and image upgrades.
+
+**Updating to a new image:**
+
+```bash
+docker compose pull && docker compose up -d
+```
+
+**Accessing from a different host or port** — set `CORS_ORIGINS` to the URL you actually use:
+
+```bash
+CORS_ORIGINS="http://192.168.1.10:8080" docker compose up -d
+```
+
+---
 
 ### Local Development
 
@@ -185,7 +226,7 @@ Open http://localhost:5173.
 | SSH | Paramiko |
 | Models | Groq, OpenAI, Anthropic, Gemini, Ollama, OpenAI-compatible providers |
 | Auth | JWT, optional login, account lockout |
-| Deployment | systemd, Nginx |
+| Deployment | systemd, Nginx, Docker |
 
 </details>
 

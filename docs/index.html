@@ -196,18 +196,19 @@ tr:hover td{background:rgba(255,255,255,0.01)}
       <li><a href="#" data-page="0" class="active">&#127968; Overview</a></li>
       <li class="sec-label">Installation</li>
       <li><a href="#" data-page="1">&#9889; Quick Start</a></li>
-      <li><a href="#" data-page="2">&#128295; Development Setup</a></li>
-      <li><a href="#" data-page="3">&#128640; Production Deploy</a></li>
+      <li><a href="#" data-page="2">&#128025; Docker</a></li>
+      <li><a href="#" data-page="3">&#128295; Development Setup</a></li>
+      <li><a href="#" data-page="4">&#128640; Production Deploy</a></li>
       <li class="sec-label">Features</li>
-      <li><a href="#" data-page="4">&#128421; Interface</a></li>
-      <li><a href="#" data-page="5">&#128172; Chat &amp; AI Agent</a></li>
-      <li><a href="#" data-page="6">&#128273; SSH Manager</a></li>
-      <li><a href="#" data-page="7">&#129302; LLM Models</a></li>
-      <li><a href="#" data-page="8">&#9200; Cron Jobs</a></li>
+      <li><a href="#" data-page="5">&#128421; Interface</a></li>
+      <li><a href="#" data-page="6">&#128172; Chat &amp; AI Agent</a></li>
+      <li><a href="#" data-page="7">&#128273; SSH Manager</a></li>
+      <li><a href="#" data-page="8">&#129302; LLM Models</a></li>
+      <li><a href="#" data-page="9">&#9200; Cron Jobs</a></li>
       <li class="sec-label">Operations</li>
-      <li><a href="#" data-page="9">&#128203; Logs &amp; Monitoring</a></li>
-      <li><a href="#" data-page="10">&#128190; Backup &amp; AI Safety</a></li>
-      <li><a href="#" data-page="11">&#128274; Settings &amp; Auth</a></li>
+      <li><a href="#" data-page="10">&#128203; Logs &amp; Monitoring</a></li>
+      <li><a href="#" data-page="11">&#128190; Backup &amp; AI Safety</a></li>
+      <li><a href="#" data-page="12">&#128274; Settings &amp; Auth</a></li>
     </ul>
   </nav>
   <div class="sidebar-footer">
@@ -266,9 +267,10 @@ tr:hover td{background:rgba(255,255,255,0.01)}
     <details class="toc-item">
       <summary><span class="toc-ico">&#9889;</span><span class="toc-info"><span class="toc-name">Installation &amp; Deployment</span><span class="toc-blurb">One-command install script or local setup</span></span><span class="toc-chev">&#9654;</span></summary>
       <div class="toc-body">
-        <p>A single <code>curl -fsSL https://raw.githubusercontent.com/paoloronco/infra-agent/master/install.sh | sudo bash</code> command installs all dependencies, configures systemd, and sets up an Nginx reverse proxy for production. You can also run it locally for development.</p>
+        <p>Three install paths: a one-line native Linux installer (systemd + Nginx), a Docker image for container-based deploys, or a local from-source setup. The native installer and Docker both auto-configure everything — no config files required.</p>
         <button class="toc-goto" onclick="go(1)">Quick Start</button>
-        <button class="toc-goto" onclick="go(3)" style="margin-left: 8px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);">Production Deploy</button>
+        <button class="toc-goto" onclick="go(2)" style="margin-left: 8px; background: rgba(14,165,233,0.15); border: 1px solid rgba(14,165,233,0.3); color:#38bdf8;">Docker</button>
+        <button class="toc-goto" onclick="go(4)" style="margin-left: 8px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);">Production Deploy</button>
       </div>
     </details>
 
@@ -276,7 +278,7 @@ tr:hover td{background:rgba(255,255,255,0.01)}
       <summary><span class="toc-ico">&#128172;</span><span class="toc-info"><span class="toc-name">Chat &amp; AI Agent</span><span class="toc-blurb">Agent loop, tools, and approval flow</span></span><span class="toc-chev">&#9654;</span></summary>
       <div class="toc-body">
         <p>Learn how the agent reasons, acts, and observes. See the 8 available SSH tools, how to write effective prompts, and how the approval flow handles risky commands.</p>
-        <button class="toc-goto" onclick="go(5)">Explore Agent Capabilities &#8594;</button>
+        <button class="toc-goto" onclick="go(6)">Explore Agent Capabilities &#8594;</button>
       </div>
     </details>
 
@@ -284,7 +286,7 @@ tr:hover td{background:rgba(255,255,255,0.01)}
       <summary><span class="toc-ico">&#128273;</span><span class="toc-info"><span class="toc-name">SSH Manager</span><span class="toc-blurb">Register hosts and manage keys</span></span><span class="toc-chev">&#9654;</span></summary>
       <div class="toc-body">
         <p>Use the automated setup wizard to deploy a restricted service user to your remote machines, or bring your own keys. Organize your hosts and test connections.</p>
-        <button class="toc-goto" onclick="go(6)">Manage Hosts &#8594;</button>
+        <button class="toc-goto" onclick="go(7)">Manage Hosts &#8594;</button>
       </div>
     </details>
 
@@ -292,8 +294,8 @@ tr:hover td{background:rgba(255,255,255,0.01)}
       <summary><span class="toc-ico">&#128203;</span><span class="toc-info"><span class="toc-name">Observability &amp; Models</span><span class="toc-blurb">Logs, models, and scheduled tasks</span></span><span class="toc-chev">&#9654;</span></summary>
       <div class="toc-body">
         <p>Configure any of the 13+ supported LLM providers. Review the execution logs, or set up cron jobs to run automated AI diagnostics on a schedule.</p>
-        <button class="toc-goto" onclick="go(7)">LLM Providers</button>
-        <button class="toc-goto" onclick="go(9)" style="margin-left: 8px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);">Logs &amp; Monitoring</button>
+        <button class="toc-goto" onclick="go(8)">LLM Providers</button>
+        <button class="toc-goto" onclick="go(10)" style="margin-left: 8px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);">Logs &amp; Monitoring</button>
       </div>
     </details>
   </div>
@@ -450,11 +452,149 @@ sudo chmod +x /opt/ai-agent/upgrade.sh
 sudo bash /opt/ai-agent/upgrade.sh</code></pre>
 
   <h2>Local / development install</h2>
-  <p>The one-line installer targets production Linux servers. If you want to run the app locally on your laptop with hot reload, see the <strong>Development Setup</strong> page instead.</p>
+  <p>The one-line installer targets production Linux servers. For local hot-reload development, see <strong>Development Setup</strong>. For a container-based install on any OS, see <strong>Docker</strong>.</p>
+  <div style="display:flex;gap:12px;margin-top:8px">
+    <button class="toc-goto" onclick="go(2)" style="background:rgba(14,165,233,0.15);border:1px solid rgba(14,165,233,0.3);color:#38bdf8">&#128025; Docker</button>
+    <button class="toc-goto" onclick="go(3)" style="background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);">&#128295; Development Setup</button>
+  </div>
 </div>
 
 
-<!-- PAGE 2 — DEVELOPMENT SETUP -->
+<!-- PAGE 2 — DOCKER -->
+<div class="page" id="page-docker">
+  <h1 class="page-title">Docker</h1>
+  <p class="page-sub">Run Infra Agent as a container using the published image or build from source. Works on any OS with Docker installed.</p>
+
+  <div class="callout callout-tip">
+    <strong>Recommended for most users.</strong> Docker gives you a fully isolated, reproducible install in two commands — no Python virtual environments, no Node.js build steps, no system packages. Data persists in a named Docker volume across restarts and image upgrades.
+  </div>
+
+  <h2>Prerequisites</h2>
+  <p>Install Docker Engine and Docker Compose. On Linux:</p>
+  <pre><code>curl -fsSL https://get.docker.com | sh
+sudo usermod -aG docker $USER   # then log out and back in to apply group</code></pre>
+  <p>On macOS or Windows, install <strong>Docker Desktop</strong>.</p>
+
+  <h2>Quick start</h2>
+
+  <h3>Option A &mdash; Docker Compose <span class="badge badge-purple">recommended</span></h3>
+  <pre><code>git clone https://github.com/paoloronco/infra-agent.git
+cd infra-agent/app
+docker compose up -d</code></pre>
+  <p>This pulls <code>paueron/infra-agent:latest</code> from Docker Hub, creates a named volume for persistence, and starts the container. Open <strong>http://localhost:8080</strong>.</p>
+
+  <h3>Option B &mdash; <code>docker run</code> (no clone required)</h3>
+  <pre><code>docker run -d \
+  -p 8080:80 \
+  -v infra-agent-data:/app/backend/data \
+  -e CORS_ORIGINS="http://localhost:8080" \
+  --name infra-agent \
+  --restart unless-stopped \
+  paueron/infra-agent:latest</code></pre>
+
+  <h2>First setup after starting</h2>
+
+  <div class="step">
+    <div class="step-num">1</div>
+    <div>
+      <div class="step-title">Open the app</div>
+      <div class="step-desc">Navigate to <strong>http://localhost:8080</strong> (or your server IP/domain with the mapped port).</div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-num">2</div>
+    <div>
+      <div class="step-title">Add an LLM provider</div>
+      <div class="step-desc">Go to <strong>Models</strong> &rarr; find a provider card &rarr; paste your API key &rarr; <strong>Save</strong> &rarr; <strong>Test</strong>. No environment variables or config files needed — everything is stored encrypted in the database.</div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-num">3</div>
+    <div>
+      <div class="step-title">Register a target host</div>
+      <div class="step-desc">Go to <strong>SSH Manager</strong> &rarr; <strong>+ Add host</strong> &rarr; choose <em>AI Agent Setup</em> &rarr; run the generated script on the target as root &rarr; click <strong>Test</strong>.</div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-num">4</div>
+    <div>
+      <div class="step-title">Enable authentication</div>
+      <div class="step-desc">Go to <strong>Settings</strong> &rarr; toggle <strong>Authentication ON</strong>. Recommended before exposing the app to a network.</div>
+    </div>
+  </div>
+
+  <h2>Data persistence</h2>
+  <p>All application state is stored under <code>/app/backend/data</code> inside the container, mapped to the <code>infra-agent-data</code> named Docker volume. This volume survives container stops, restarts, and image upgrades.</p>
+
+  <table>
+    <tr><th>What is stored</th><th>Location in volume</th></tr>
+    <tr><td>SQLite database (chats, models, hosts, logs)</td><td><code>app.db</code></td></tr>
+    <tr><td>SSH private keys</td><td><code>ssh_keys/</code></td></tr>
+    <tr><td>Encryption key (used for API key storage)</td><td><code>secret_key.txt</code></td></tr>
+    <tr><td>Bootstrap admin password (first run only)</td><td><code>bootstrap_admin_password.txt</code></td></tr>
+  </table>
+
+  <div class="callout callout-warn">
+    <strong>Back up the volume.</strong> Use the in-app <strong>Backup</strong> page to export a portable <code>.aib</code> file — easier than extracting the Docker volume directly and compatible with both Docker and native installs for restore.
+  </div>
+
+  <h2>Configuration</h2>
+  <p>The only environment variable most setups need is <code>CORS_ORIGINS</code>. All other settings (LLM provider keys, SSH config, agent behaviour) are configured directly from the UI.</p>
+
+  <table>
+    <tr><th>Variable</th><th>Default in <code>docker-compose.yml</code></th><th>When to change</th></tr>
+    <tr><td><code>CORS_ORIGINS</code></td><td><code>http://localhost:8080</code></td><td>Any time you access the app from a different host or port</td></tr>
+    <tr><td><code>DATABASE_URL</code></td><td>SQLite (auto-created in volume)</td><td>Only if you want to use an external PostgreSQL database</td></tr>
+    <tr><td><code>LOG_LEVEL</code></td><td><code>INFO</code></td><td>Set to <code>DEBUG</code> for verbose agent and SSH traces</td></tr>
+  </table>
+
+  <p>Set variables in <code>docker-compose.yml</code> under <code>environment:</code>, or pass with <code>-e</code> to <code>docker run</code>:</p>
+  <pre><code># Access from another machine on your local network
+CORS_ORIGINS="http://192.168.1.10:8080" docker compose up -d</code></pre>
+
+  <h2>Updating to a new image</h2>
+  <pre><code>docker compose pull
+docker compose up -d</code></pre>
+  <p>The named volume is untouched by <code>docker compose pull</code>. Your database, SSH keys, and configuration are preserved automatically. Routine updates do not require a manual backup, though it is always a good practice before major version upgrades.</p>
+
+  <h2>Container logs</h2>
+  <pre><code># Follow all output (nginx + backend combined)
+docker compose logs -f
+
+# Show only backend events
+docker compose logs -f infra-agent 2>&1 | grep -v nginx</code></pre>
+
+  <h2>Build from source</h2>
+  <p>To build the image locally instead of pulling from Docker Hub:</p>
+  <pre><code>cd infra-agent/app
+docker compose up --build -d</code></pre>
+  <p>The Dockerfile uses a two-stage build: <strong>Stage 1</strong> compiles the React frontend with Node 20 Alpine; <strong>Stage 2</strong> installs Python dependencies and combines everything into a single image with Nginx serving the SPA and proxying <code>/api/</code> and SSH routes to the FastAPI backend on port 8001.</p>
+
+  <h2>Production deployment on a server</h2>
+  <p>Copy <code>docker-compose.yml</code> to the server, set <code>CORS_ORIGINS</code>, and run:</p>
+  <pre><code>CORS_ORIGINS="https://infra.yourdomain.com" docker compose up -d</code></pre>
+  <p>For HTTPS, add a reverse proxy in front of the container. Example with Caddy (auto-TLS):</p>
+  <pre><code># /etc/caddy/Caddyfile
+infra.yourdomain.com {
+    reverse_proxy localhost:8080
+}</code></pre>
+
+  <h2>Native installer vs Docker</h2>
+  <table>
+    <tr><th></th><th>Native installer</th><th>Docker</th></tr>
+    <tr><td><strong>Isolation</strong></td><td>Runs on host Python/Node</td><td>Fully containerised</td></tr>
+    <tr><td><strong>OS requirement</strong></td><td>glibc Linux with apt / dnf / pacman</td><td>Any OS with Docker</td></tr>
+    <tr><td><strong>systemd integration</strong></td><td>Yes — service, journalctl logs</td><td>No — managed by Docker daemon</td></tr>
+    <tr><td><strong>Updates</strong></td><td><code>upgrade.sh</code> — rebuilds in-place</td><td><code>docker compose pull &amp;&amp; up -d</code></td></tr>
+    <tr><td><strong>Best for</strong></td><td>Dedicated Linux VPS, systemd environments</td><td>Homelab, existing Docker infra, macOS/Windows</td></tr>
+  </table>
+</div>
+
+
+<!-- PAGE 3 — DEVELOPMENT SETUP (was PAGE 2) -->
 <div class="page" id="page-2">
   <h1 class="page-title">Development Setup</h1>
   <p class="page-sub">Full from-source setup with hot reload for both backend and frontend.</p>
@@ -545,7 +685,7 @@ python -m pytest test_*.py -v</code></pre>
 </div>
 
 
-<!-- PAGE 3 — PRODUCTION DEPLOY -->
+<!-- PAGE 4 — PRODUCTION DEPLOY (was PAGE 3) -->
 <div class="page" id="page-3">
   <h1 class="page-title">Production Deployment</h1>
   <p class="page-sub">Native installer defaults, Nginx reverse proxy, systemd service, PostgreSQL, and environment hardening.</p>
