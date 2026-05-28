@@ -29,10 +29,12 @@ def _ensure_keys_dir() -> None:
 
 def _detect_private_key_format(path: str) -> str:
     try:
-        resolved = Path(path).resolve()
-        if not resolved.is_relative_to(KEYS_DIR.resolve()):
+        # Reconstruct from safe base using only the filename component so that
+        # any directory traversal in `path` is neutralised before filesystem access.
+        safe_path = (KEYS_DIR / Path(path).name).resolve()
+        if not safe_path.is_relative_to(KEYS_DIR.resolve()):
             return "missing"
-        text = resolved.read_text(encoding="utf-8", errors="replace")
+        text = safe_path.read_text(encoding="utf-8", errors="replace")
     except Exception:
         return "missing"
     if "BEGIN OPENSSH PRIVATE KEY" in text:
@@ -44,6 +46,11 @@ def _detect_private_key_format(path: str) -> str:
 
 def validate_private_key_file(path: str) -> Dict[str, Any]:
     """Return whether Paramiko can load a private key file."""
+    # Sanitise before any filesystem access: rebuild from safe base + filename only.
+    safe_path = (KEYS_DIR / Path(path).name).resolve()
+    if not safe_path.is_relative_to(KEYS_DIR.resolve()):
+        return {"valid": False, "key_type": "unknown", "private_key_format": "missing", "error": "path outside keys directory"}
+    path = str(safe_path)
     fmt = _detect_private_key_format(path)
     loaders = (
         ("ssh-ed25519", paramiko.Ed25519Key),

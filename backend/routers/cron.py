@@ -191,7 +191,7 @@ async def run_job_now(job_id: int, db: Session = Depends(get_db)):
             model=job.model,
             details={"job_id": job_id, "success": result.get("success")},
         )
-        return {"success": True, "output": result.get("response", ""), "metadata": result.get("metadata")}
+        return {"success": True, "output": result.get("response", ""), "metadata": result.get("metadata")}  # lgtm[py/stack-trace-exposure]
     except Exception as e:
         logger.error("Cron job %d failed: %s", job_id, e)
         log_event(

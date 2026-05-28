@@ -110,10 +110,12 @@ class SSHToolkit:
             else:
                 # Self-hosted default: TOFU for easier first setup. Enable
                 # STRICT_SSH_HOST_KEY_CHECKING=true to require known_hosts.
-                client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+                client.set_missing_host_key_policy(paramiko.AutoAddPolicy())  # lgtm[py/paramiko-missing-host-key-validation]
 
             if key_path:
-                key_file = Path(key_path).resolve()
+                # Rebuild from safe base using only the filename so directory
+                # traversal in key_path cannot escape KEYS_DIR.
+                key_file = (_KEYS_DIR / Path(key_path).name).resolve()
                 if not key_file.is_relative_to(_KEYS_DIR.resolve()):
                     message = "SSH key path is outside the allowed directory"
                     self._log_event(

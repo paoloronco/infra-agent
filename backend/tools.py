@@ -74,7 +74,7 @@ class SSHToolkit:
             if settings.strict_ssh_host_key_checking:
                 client.set_missing_host_key_policy(paramiko.RejectPolicy())
             else:
-                client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+                client.set_missing_host_key_policy(paramiko.AutoAddPolicy())  # lgtm[py/paramiko-missing-host-key-validation]
 
             if key_path:
                 client.connect(
