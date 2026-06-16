@@ -13,6 +13,9 @@ before they are executed.
 ![License](https://img.shields.io/badge/license-MIT-blue?style=flat)
 [![Documentation](https://img.shields.io/badge/docs-paoloronco.github.io-818cf8?style=flat&logo=gitbook&logoColor=white)](https://paoloronco.github.io/infra-agent/)
 
+[![Available on GitHub](https://img.shields.io/badge/Available_on-GitHub-181717?logo=github&logoColor=white)](https://github.com/paoloronco/infra-agent)
+[![Available on Gitea](https://img.shields.io/badge/Available_on-Gitea-609926?logo=gitea&logoColor=white)](https://gitea.com/paoloronco/infra-agent)
+
 **[📖 Full documentation → paoloronco.github.io/infra-agent](https://paoloronco.github.io/infra-agent/)**
 
 ## What You Get
