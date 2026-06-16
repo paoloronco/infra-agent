@@ -1,6 +1,3 @@
-[![Available on GitHub](https://img.shields.io/badge/Available%20on-GitHub-181717?logo=github)](https://github.com/paoloronco/infra-agent)
-[![Available on Gitea](https://img.shields.io/badge/Available%20on-Gitea-609926?logo=gitea)](https://gitea.com/paoloronco/infra-agent)
-
 # Infra Agent
 
 An open-source AI agent for diagnosing and managing remote Linux hosts over SSH.
